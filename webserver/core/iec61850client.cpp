@@ -15,6 +15,24 @@ void reportCallbackFunction(void *parameter, ClientReport report)
 {
     MmsValue *dataSetValues = ClientReport_getDataSetValues(report);
 
+    int location = 20;
+
+    std::string reportref = ClientReport_getRcbReference(report);
+    if (reportref.compare("IEDServer01LogicalDevice/LLN0.RP.Measurements01") == 0) {
+        location = 0;
+    }
+    else if (reportref.compare("IEDServer02LogicalDevice/LLN0.RP.Measurements01") == 0){
+        location = 10;
+    }
+    
+    MmsValue* magf = MmsValue_getElement(dataSetValues, 0);
+    *dint_memory[location] = (IEC_DINT*) MmsValue_toFloat(magf);
+    MmsValue_delete(magf);
+
+    MmsValue* q = MmsValue_getElement(dataSetValues, 1);
+    *dint_memory[location+1] = (IEC_DINT*) MmsValue_toFloat(q);
+    MmsValue_delete(q);
+    /*
     sprintf(log_msg_iecclient, "received report for %s with rptId %s\n",
            ClientReport_getRcbReference(report), ClientReport_getRptId(report));
     log(log_msg_iecclient);
@@ -46,6 +64,7 @@ void reportCallbackFunction(void *parameter, ClientReport report)
         log(log_msg_iecclient);
     }
     printf("\n");
+    */
 }
 
 void run_iec61850_client()
