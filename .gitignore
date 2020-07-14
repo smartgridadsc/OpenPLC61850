@@ -1,0 +1,17 @@
+# where docs are output to on gitlab.. MUST be named public/
+public/
+
+.sass-cache/
+.idea/
+
+*.pyc
+
+# IDE files for Visual Studio Code and Visual Studio
+CMakeSettings.json
+*.vscode/
+*.vs/
+
+# Build directories
+webserver/bin
+webserver/build
+obj/
