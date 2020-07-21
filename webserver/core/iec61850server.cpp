@@ -92,7 +92,7 @@ void startIec61850Server(int port)
     //   MAIN LOOP
     //==============================================
     while(run_iec61850) {
-
+        /*
         //mutex lock buffer
         pthread_mutex_lock(&bufferLock);
 
@@ -116,6 +116,7 @@ void startIec61850Server(int port)
         pthread_mutex_unlock(&bufferLock);
 
         sleep_until(&timer_start, OPLC_CYCLE);
+        */
     }
 
     //clean up

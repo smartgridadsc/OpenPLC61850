@@ -29,6 +29,11 @@ class User(flask_login.UserMixin):
 
 def configure_runtime():
     global openplc_runtime
+
+    #temp addition to run iec61850
+    print("Enabling IEC61850 on port 102")
+    openplc_runtime.start_iec61850(102)
+    
     database = "openplc.db"
     conn = create_connection(database)
     if (conn != None):
@@ -70,11 +75,6 @@ def configure_runtime():
                         print("Disabling Persistent Storage")
                         openplc_runtime.stop_pstorage()
                         delete_persistent_file()
-
-                #temp addition to run iec61850
-                print("Enabling IEC61850 on port 102")
-                openplc_runtime.start_iec61850(102)
-                
 
         except Error as e:
             print("error connecting to the database" + str(e))

@@ -78,6 +78,8 @@ elif [ "$OPENPLC_PLATFORM" = "linux" ]; then
     fi
     echo "Generating glueVars..."
     ./glue_generator
+    echo "Generating mapping file"
+    
     echo "Generating static_model..."
     java -jar genmodel.jar ../scl_files/scl.icd
     echo "Compiling main program..."
