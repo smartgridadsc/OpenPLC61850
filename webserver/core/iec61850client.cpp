@@ -1,48 +1,41 @@
 #include <iostream>
+#include <fstream>
+#include <sstream>
 #include <pthread.h>
 #include <stdlib.h>
 #include <string>
 #include <time.h>
+#include <map>
+#include <unordered_map>
+#include <vector>
+#include <unistd.h>
 
 #include "hal_thread.h"
 #include "iec61850_client.h"
 
-#include "ladder.h"
+#include "ladder.h" 
+
+#define CLIENTMAP_FILENAME "core/iecclient.map"
 
 unsigned char log_msg_iecclient[1000];
+std::vector<std::string> ipaddresses;
+std::unordered_map<std::string,std::string> mapping;
+std::map<std::string, std::string> controlWatch;
+
+std::string trimFC(char *entryName) {
+    std::string object = "";
+
+    for (int i = 0; i < strlen(entryName) && entryName[i] != '['; i++) {
+        object += entryName[i];
+    }
+
+    return object;
+}
 
 void reportCallbackFunction(void *parameter, ClientReport report)
 {
     //read from config to determine what element is of what type and writes to what
     MmsValue *dataSetValues = ClientReport_getDataSetValues(report);
-
-    int location = 20;
-
-    std::string reportref = ClientReport_getRcbReference(report);
-    if (reportref.compare("IEDServer01LogicalDevice/LLN0.RP.Measurements01") == 0) {
-        location = 0;
-    }
-    else if (reportref.compare("IEDServer02LogicalDevice/LLN0.RP.Measurements01") == 0) {
-        location = 10;
-    }
-
-    pthread_mutex_lock(&bufferLock);
-    MmsValue *magf = MmsValue_getElement(dataSetValues, 0);
-    auto flt = MmsValue_toFloat(magf);
-    if (dint_memory[location] != NULL) {
-        *dint_memory[location] = *(reinterpret_cast<int32_t *>(&flt));
-    }
-    pthread_mutex_unlock(&bufferLock);
-    /*
-    MmsValue* q = MmsValue_getElement(dataSetValues, 1);
-    auto gg = MmsValue_getBitStringAsInteger(q);
-    sprintf(log_msg_iecclient, "Q = %f\n", gg);
-    log(log_msg_iecclient);
-    if(dint_memory[location+1] != NULL) {
-        *dint_memory[location+1] = gg;
-    }
-    pthread_mutex_unlock(&bufferLock);
-    */
 
     LinkedList dataSetDirectory = (LinkedList)parameter;
     if (dataSetDirectory) {
@@ -54,29 +47,94 @@ void reportCallbackFunction(void *parameter, ClientReport report)
 
             if (dataSetValues) {
                 MmsValue *value = MmsValue_getElement(dataSetValues, i);
-
+               
                 if (value) {
                     MmsValue_printToBuffer(value, valBuffer, 500);
                 }
+
+                LinkedList entry = LinkedList_get(dataSetDirectory, i);
+
+                char *entryName = (char *)entry->data;
+
+                /*
+                sprintf(log_msg_iecclient, "%s (included for reason %i): %s\n", entryName, reason, valBuffer);
+                log(log_msg_iecclient);
+                */
+            
+                std::string object = trimFC(entryName);
+
+                if (mapping.count(object)) {
+                    write_to_address(value, mapping[object]);
+                }
+                else {
+                   sprintf(log_msg_iecclient, "  Mapping not found for %s\n", object.c_str());
+                    log(log_msg_iecclient);
+                }
+            }
+            //sample entry name  IEDServer01LogicalDevice/GGIO.Anln1.mag.f[MX], need trim away the end
+        }
+    }
+}
+
+void process_mapping() {
+
+    std::ifstream mapfile (CLIENTMAP_FILENAME);
+    if (!mapfile.is_open()) {
+        sprintf(log_msg_iecclient, "Fail to open iecclient.map\n");
+        log(log_msg_iecclient);
+    }
+    if (!mapfile.good()) {
+        sprintf(log_msg_iecclient, "Mapfile is not good\n    failbit=%i\n     badbit=%i\n", mapfile.fail(), mapfile.bad());
+        log(log_msg_iecclient);
+    }
+
+    std::string line;
+    bool ipDone = false;
+    while(!mapfile.eof()) {
+        std::getline(mapfile, line);
+
+        if (line.empty()) {
+            ipDone = true;
+            continue;
+        }
+        
+        if (!ipDone) {
+            ipaddresses.push_back(line);
+        }
+        else {
+            std::stringstream ss(line);
+            std::string token;
+
+            std::getline(ss, token, ' ');
+            std::string type = token;
+
+            std::getline(ss, token, ' ');
+            std::string var = token;
+
+            std::getline(ss, token, ' ');
+            std::string addr = token;
+
+            if (type.compare("CONTROL") == 0) {
+                //add to controlwatch
             }
 
-            LinkedList entry = LinkedList_get(dataSetDirectory, i);
-
-            char *entryName = (char *)entry->data;
-            sprintf(log_msg_iecclient, "  %s (included for reason %i): %s\n", entryName, reason, valBuffer);
-            log(log_msg_iecclient);
+            mapping[var] = addr;
         }
     }
 }
 
 void run_iec61850_client()
 {
-    Thread_sleep(5000);
-
+    sprintf(log_msg_iecclient, "Starting IEC61850CLIENT\n");
+    log(log_msg_iecclient);
     //read clientconfig
 
-    //read mapping
+    //==============================================
+    //   PROCESS MAPPING FILE
+    //==============================================
+    process_mapping();
 
+    Thread_sleep(1000);
     IedClientError error;
 
     //printf("**************SETTING UP CRCB FOR IEDONE***************\n");

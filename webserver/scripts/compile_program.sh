@@ -78,10 +78,11 @@ elif [ "$OPENPLC_PLATFORM" = "linux" ]; then
     fi
     echo "Generating glueVars..."
     ./glue_generator
-    echo "Generating mapping file"
-    
+    echo "Generating mapping file for IEC61850 client function"
+    CLIENTSCL=`find ../scl_client_files/*.icd | xargs echo`
+    ./mapper -client -st ../st_files/$1 -scl $CLIENTSCL -o iecclient.map
     echo "Generating static_model..."
-    java -jar genmodel.jar ../scl_files/scl.icd
+    java -jar genmodel.jar ../scl_server_files/scl.icd
     echo "Compiling main program..."
     LIBIEC="../../utils/libiec61850_src/build/libiec61850.a -I../../utils/libiec61850_src/config -I../../utils/libiec61850_src/hal/inc -I../../utils/libiec61850_src/src/common/inc -I../../utils/libiec61850_src/src/mms/inc -I../../utils/libiec61850_src/src/mms/inc_private -I../../utils/libiec61850_src/src/mms/asn1 -I../../utils/libiec61850_src/src/iec61850/inc -I../../utils/libiec61850_src/src/iec61850/inc_private -I../../utils/libiec61850_src/src/goose -I../../utils/libiec61850_src/src/sampled_values -I../../utils/libiec61850_src/src/logging -I../../utils/libiec61850_src/src/tls"
     g++ -std=gnu++11 static_model.c *.cpp *.o  $LIBIEC -o openplc -I ./lib -pthread -fpermissive `pkg-config --cflags --libs libmodbus` -lasiodnp3 -lasiopal -lopendnp3 -lopenpal -w 

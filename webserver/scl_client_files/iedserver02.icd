@@ -1,0 +1,235 @@
+<?xml version="1.0" encoding="utf-8"?>
+<SCL xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://www.iec.ch/61850/2003/SCL">
+  <Header id="IEDServer01" nameStructure="IEDName" />
+  <!--Test file by WenShei-->
+  <Communication>
+    <SubNetwork name="node">
+      <ConnectedAP iedName="IEDServer02" apName="W1">
+        <Address>
+          <P type="IP">192.168.194.129</P>
+          <P type="IP-SUBNET">255.255.255.0</P>
+          <P type="IP-GATEWAY">192.168.194.2</P>
+        </Address>
+      </ConnectedAP>
+    </SubNetwork>
+  </Communication>
+  <IED name="IEDServer02" type="Telecontrol application" manufacturer="NOONE" configVersion="1.0">
+    <Services>
+      <DynAssociation />
+      <SettingGroups />
+      <GetDirectory />
+      <GetDataObjectDefinition />
+      <GetDataSetValue />
+      <SetDataSetValue />
+      <DataSetDirectory />
+      <ConfDataSet max="2" />
+      <DynDataSet max="2" maxAttributes="50" />
+      <ReadWrite />
+      <TimerActivatedControl />
+      <ConfReportControl max="14" />
+      <GetCBValues />
+      <ReportSettings cbName="Fix" datSet="Fix" rptID="Dyn" optFields="Dyn" bufTime="Dyn" trgOps="Dyn" intgPd="Dyn" />
+      <ConfLNs fixPrefix="true" fixLnInst="true" />
+      <GOOSE max="0" />
+    </Services>
+    <AccessPoint name="W1" desc="">
+      <Server>
+        <Authentication none="true" />
+        <LDevice inst="LogicalDevice" desc="">
+          <LN0 desc="" lnType="LLN0_0" lnClass="LLN0" inst="">
+            <DataSet name="Measurements">
+              <FCDA ldInst="LogicalDevice" prefix="" lnClass="GGIO" lnInst="1" doName="AnIn1" daName="mag.f" fc="MX" />
+            </DataSet>
+
+            <ReportControl name="Measurements" desc="" datSet="Measurements" intgPd="1000" rptID="Measurements" confRev="0" buffered="false" bufTime="50">
+              <TrgOps dchg="true" qchg="true" dupd="true" period="true" />
+              <OptFields seqNum="true" timeStamp="true" reasonCode="true" dataSet="true" dataRef="true" entryID="true" configRef="true" />
+              <RptEnabled max="5" />
+            </ReportControl>
+
+            <DOI name="Mod">
+              <DAI name="stVal">
+              	<Val>on</Val>
+              </DAI>
+              <DAI name="ctlModel">
+                <Val>status-only</Val>
+              </DAI>
+            </DOI>
+            <DOI name="Beh">
+              <DAI name="stVal">
+              	<Val>on</Val>
+              </DAI>
+            </DOI>
+            <DOI name="Health">
+              <DAI name="stVal">
+              	<Val>ok</Val>
+              </DAI>
+            </DOI>
+          </LN0>
+
+          <LN desc="" lnType="GGIO1" lnClass="GGIO" inst="1" prefix="">
+            <DOI name="Mod">
+              <DAI name="stVal">
+              	<Val>on</Val>
+              </DAI>
+              <DAI name="ctlModel">
+                <Val>status-only</Val>
+              </DAI>
+            </DOI>
+            <DOI name="Beh">
+              <DAI name="stVal">
+              	<Val>on</Val>
+              </DAI>
+            </DOI>
+            <DOI name="Health">
+              <DAI name="stVal">
+              	<Val>ok</Val>
+              </DAI>
+            </DOI>
+            <DOI name="AnIn1" />
+          </LN>
+
+          <LN desc="" lnType="GGIO2" lnClass="GGIO" inst="2" prefix="">
+            <DOI name="Mod">
+              <DAI name="stVal">
+              	<Val>on</Val>
+              </DAI>
+              <DAI name="ctlModel">
+                <Val>direct-with-normal-security</Val>
+              </DAI>
+            </DOI>
+            <DOI name="Beh">
+              <DAI name="stVal">
+              	<Val>on</Val>
+              </DAI>
+            </DOI>
+            <DOI name="Health">
+              <DAI name="stVal">
+              	<Val>ok</Val>
+              </DAI>
+            </DOI>
+            <DOI name="SPC1" />
+          </LN>
+
+        </LDevice>
+      </Server>
+    </AccessPoint>
+  </IED>
+  <DataTypeTemplates>
+    <LNodeType id="LLN0_0" lnClass="LLN0">
+      <DO name="Mod" type="ENC_1_Mod" />
+      <DO name="Beh" type="ENS_1_Beh" />
+      <DO name="Health" type="ENS_2_Health" />
+      <DO name="NamPlt" type="LPL_1_NamPlt" />
+    </LNodeType>
+    <LNodeType id="GGIO1" lnClass="GGIO">
+      <DO name="Mod" type="ENC_1_Mod" />
+      <DO name="Beh" type="ENS_1_Beh" />
+      <DO name="Health" type="ENS_2_Health" />
+      <DO name="NamPlt" type="LPL_1_NamPlt" />
+      <DO name="AnIn1" type="MV_1_AnIn1" />
+    </LNodeType>
+    <LNodeType id="GGIO2" lnClass="GGIO">
+      <DO name="Mod" type="ENC_1_Mod" />
+      <DO name="Beh" type="ENS_1_Beh" />
+      <DO name="Health" type="ENS_2_Health" />
+      <DO name="NamPlt" type="LPL_1_NamPlt" />
+      <DO name="SPC1" type="SPC_1" />
+    </LNodeType>
+    
+    <DOType id="ENC_1_Mod" cdc="ENC">
+      <DA name="stVal" bType="Enum" type="Beh" fc="ST" dchg="true" />
+      <DA name="q" bType="Quality" fc="ST" qchg="true" />
+      <DA name="t" bType="Timestamp" fc="ST" />
+      <DA name="ctlModel" type="CtlModels" bType="Enum" fc="CF" />
+    </DOType>
+    <DOType id="ENS_1_Beh" cdc="ENS">
+      <DA name="stVal" bType="Enum" type="Beh" fc="ST" dchg="true" />
+      <DA name="q" bType="Quality" fc="ST" qchg="true" />
+      <DA name="t" bType="Timestamp" fc="ST" />
+    </DOType>
+    <DOType id="ENS_2_Health" cdc="ENS">
+      <DA name="stVal" bType="Enum" type="HealthKind" fc="ST" dchg="true" />
+      <DA name="q" bType="Quality" fc="ST" qchg="true" />
+      <DA name="t" bType="Timestamp" fc="ST" />
+    </DOType>
+    <DOType id="LPL_1_NamPlt" cdc="LPL">
+      <DA name="vendor" bType="VisString255" fc="DC" />
+      <DA name="swRev" bType="VisString255" fc="DC" />
+      <DA name="d" bType="VisString255" fc="DC" />
+      <DA name="configRev" bType="VisString255" fc="DC" />
+      <DA name="ldNs" bType="VisString255" fc="EX" />
+    </DOType>
+    <DOType id="MV_1_AnIn1" cdc="MV">
+      <DA name="mag" type="AnalogueValue_1" bType="Struct" fc="MX" dchg="true">
+        <Private name ="mag">
+          <Private name="f">
+            <Property Name="sMonitoringVar" Value="ied02Magf"/>
+          </Private>
+        </Private>
+      </DA>
+      <DA name="q" bType="Quality" fc="MX" qchg="true" />
+      <DA name="t" bType="Timestamp" fc="MX" />
+    </DOType>
+    <DOType id="SPC_1" cdc="SPC">
+      <DA name="stVal" bType="BOOLEAN" fc="ST" dchg="true" />
+      <DA name="q" bType="Quality" fc="ST" qchg="true" />
+      <DA name="Oper" type="SPCOperate_1" bType="Struct" fc="CO">
+        <Private name="Oper">
+          <Private name="ctlVal">
+            <Property Name="sControlVar" Value="ied02control"/>
+          </Private>
+        </Private>
+      </DA>
+      <DA name="ctlModel" type="CtlModels" bType="Enum" fc="CF" />
+      <DA name="t" bType="Timestamp" fc="ST" />
+    </DOType>
+    
+    <DAType id="AnalogueValue_1">
+      <BDA name="f" bType="FLOAT32" />
+    </DAType>
+    <DAType id="SPCOperate_1">
+      <BDA name="ctlVal" bType="BOOLEAN" />
+      <BDA name="origin" type="Originator_1" bType="Struct" />
+      <BDA name="ctlNum" bType="INT8U" />
+      <BDA name="T" bType="Timestamp" />
+      <BDA name="Test" bType="BOOLEAN" />
+      <BDA name="Check" bType="Check" />
+    </DAType>
+    <DAType id="Originator_1">
+      <BDA name="orCat" type="OrCat" bType="Enum" />
+      <BDA name="orIdent" bType="Octet64" />
+    </DAType>
+    
+    <EnumType id="Beh">
+      <EnumVal ord="1">on</EnumVal>
+      <EnumVal ord="2">blocked</EnumVal>
+      <EnumVal ord="3">test</EnumVal>
+      <EnumVal ord="4">test/blocked</EnumVal>
+      <EnumVal ord="5">off</EnumVal>
+    </EnumType>
+    <EnumType id="HealthKind">
+	  <EnumVal ord="1">ok</EnumVal>
+	  <EnumVal ord="2">warning</EnumVal>
+	  <EnumVal ord="3">alarm</EnumVal>
+    </EnumType>
+    <EnumType id="CtlModels">
+      <EnumVal ord="0">status-only</EnumVal>
+      <EnumVal ord="1">direct-with-normal-security</EnumVal>
+      <EnumVal ord="2">sbo-with-normal-security</EnumVal>
+      <EnumVal ord="3">direct-with-enhanced-security</EnumVal>
+      <EnumVal ord="4">sbo-with-enhanced-security</EnumVal>
+    </EnumType>
+    <EnumType id="OrCat">
+      <EnumVal ord="0">not-supported</EnumVal>
+      <EnumVal ord="1">bay-control</EnumVal>
+      <EnumVal ord="2">station-control</EnumVal>
+      <EnumVal ord="3">remote-control</EnumVal>
+      <EnumVal ord="4">automatic-bay</EnumVal>
+      <EnumVal ord="5">automatic-station</EnumVal>
+      <EnumVal ord="6">automatic-remote</EnumVal>
+      <EnumVal ord="7">maintenance</EnumVal>
+      <EnumVal ord="8">process</EnumVal>
+    </EnumType>
+  </DataTypeTemplates>
+</SCL>
