@@ -32,7 +32,7 @@ int target;
 std::unordered_map<std::string, std::string> var_addr_map;
 
 std::vector<std::string> ipaddr_buffer;
-std::vector<std::string> dataset_buffer;
+std::vector<std::vector<std::string>> report_dataset_buffer;
 std::vector<std::string> mapvaraddr_buffer;
 
 using namespace pugi;
@@ -53,7 +53,77 @@ std::string trimWhitespace(std::string line)
     return line.substr(startIndex, count);
 }
 
+/*
+    Function to get IP address from SCL file.
+    Called only for client target.
+*/
+void get_IP_address(xml_document &sclfile)
+{
+    xml_node conap = sclfile.child("SCL").child("Communication").child("SubNetwork").child("ConnectedAP");
+    std::string iedName = conap.attribute("iedName").value();
+    for (xml_node ip = conap.child("Address").child("P"); ip; ip = ip.next_sibling("P")) {
+        std::string iptype = ip.attribute("type").value();
+        if (iptype.compare("IP") == 0) {
+            ipaddr_buffer.push_back((std::string)ip.first_child().text().as_string());
+        }
+    }
+}
+
+/*
+    Called by get_report_dataset()
+    Function to get dataset details from SCL file (assume only 1 logical device).
+*/
+
+std::string get_dataSet_reference(xml_document &sclfile, std::string given_name)
+{
+    xml_node phydev = sclfile.child("SCL").child("IED");
+    std::string pdld_name = phydev.attribute("name").value();
+
+    xml_node logdev = phydev.child("AccessPoint").child("Server").child("LDevice");
+    pdld_name = pdld_name + logdev.attribute("inst").value();
+
+    for (xml_node dataset = logdev.child("LN0").child("DataSet"); dataset; dataset = dataset.next_sibling("DataSet")) {
+        std::string dataset_name = dataset.attribute("name").value();
+        if (dataset_name.compare(given_name) == 0) {
+            return (pdld_name + "/LLN0$" + dataset_name);
+        }
+        
+    }
+
+    return "X";
+}
+
+/*
+    Function to get report details from SCL file (assume only 1 logical device).
+    Called only for client target.
+*/
+
+void get_report_dataset(xml_document &sclfile)
+{
+    std::vector<std::string> reports_datasets;
+    xml_node phydev = sclfile.child("SCL").child("IED");
+    std::string pdld_name = phydev.attribute("name").value();
+
+    xml_node logdev = phydev.child("AccessPoint").child("Server").child("LDevice");
+    pdld_name = pdld_name + logdev.attribute("inst").value();
+
+    for (xml_node report = logdev.child("LN0").child("ReportControl"); report; report = report.next_sibling("ReportControl")) {
+        std::string report_name = report.attribute("name").value();
+        std::string dataset_ref = get_dataSet_reference(sclfile, report.attribute("datSet").value()); 
+        
+        int numInstances = std::stoi(report.child("RptEnabled").attribute("max").value());
+        for(int i = 1; i <= numInstances; i++) {
+            char inst[10];
+            sprintf(inst, "%02d", i);
+            reports_datasets.push_back(pdld_name + "/LLN0.RP." + report_name + inst + " " + dataset_ref);
+        }
+    }
+
+    report_dataset_buffer.push_back(reports_datasets);
+}
+
 /* 
+    Called by get_scl_variables().
     Recursive function to extract PLC variables of data attributes from supplied parent node.
     Parent node can be of DataObject or DataAttribute.
 */
@@ -75,10 +145,10 @@ void getVarAddrMapping(xml_node parent, std::string pathstring)
                     address = "X";
                 }
                 if (target == CLIENT) {
-                    mapvaraddr_buffer.push_back("MONITOR " + pathstring + " " + address + "\n");
+                    mapvaraddr_buffer.push_back("MONITOR " + pathstring + " " + address);
                 }
                 else if (target == SERVER) {
-                    mapvaraddr_buffer.push_back(pathstring + " " + address + "\n");
+                    mapvaraddr_buffer.push_back(pathstring + " " + address);
                 }
             }
             else if (prop_name.compare("sControlVar") == 0 && !prop_value.empty()) {
@@ -87,35 +157,15 @@ void getVarAddrMapping(xml_node parent, std::string pathstring)
                     address = "X";
                 }
                 if (target == CLIENT) {
-                    mapvaraddr_buffer.push_back("CONTROL " + pathstring + " " + address + "\n");
+                    mapvaraddr_buffer.push_back("CONTROL " + pathstring + " " + address);
                 }
                 else if (target == SERVER) {
-                    mapvaraddr_buffer.push_back(pathstring + " " + address + "\n");
+                    mapvaraddr_buffer.push_back(pathstring + " " + address);
                 }
             }
         }
     }
 }
-
-/*
-    Function to get IP address from SCL file.
-    Called only for client target.
-*/
-void get_IP_address(xml_document &sclfile)
-{
-    xml_node conap = sclfile.child("SCL").child("Communication").child("SubNetwork").child("ConnectedAP");
-    std::string iedName = conap.attribute("iedName").value();
-    for (xml_node ip = conap.child("Address").child("P"); ip; ip = ip.next_sibling("P")) {
-        std::string iptype = ip.attribute("type").value();
-        if (iptype.compare("IP") == 0) {
-            ipaddr_buffer.push_back(((std::string)ip.first_child().text().as_string()) + "\n");
-        }
-    }
-}
-
-/*
-    Function to get report element to IEC61850 variables mapping
-*/
 
 /* 
     Function to map IEC61850 variables to Modbus address from SCL file.
@@ -181,8 +231,11 @@ int process_scl_files()
             std::cout << "Parsing SCL file" << it << "\n";
         }
 
-        if (target == CLIENT)
+        if (target == CLIENT) {
             get_IP_address(sclfile);
+            get_report_dataset(sclfile);
+        }
+            
         get_scl_variables(sclfile);
     }
 
@@ -376,24 +429,29 @@ int main(int argc, char *argv[])
     }
 
     //output
-    if (target == CLIENT) {
+    
+    if (target == SERVER) {
         if (!hasOutfile)
-            std::cout << "\nIP Addresses:\n";
-        for (auto it : ipaddr_buffer)
-            out << it;
+            std::cout << "\nIEC61850 Variables to ModbusAddress Mapping:\n";
+        for (auto it : mapvaraddr_buffer) {
+            out << it << std::endl;
+        }
+    }
+    else if (target == CLIENT) {
+        if (!hasOutfile)
+            std::cout << "\nIED Details:\n";
+        for (int i = 0; i < sclfilenames.size() && ipaddr_buffer.size() > 0; i++) {
+            out << ipaddr_buffer.at(i) << std::endl;
+            for (auto report_dataset: report_dataset_buffer.at(i)) {
+                out << report_dataset << std::endl;
+            }
+        }
 
         out << std::endl;
         if (!hasOutfile)
             std::cout << "\nIEC61850 Variables to ModbusAddress Mapping:\n";
         for (auto it : mapvaraddr_buffer) {
-            out << it;
-        }
-    }
-    else if (target == SERVER) {
-        if (!hasOutfile)
-            std::cout << "\nIEC61850 Variables to ModbusAddress Mapping:\n";
-        for (auto it : mapvaraddr_buffer) {
-            out << it;
+            out << it << std::endl;
         }
     }
 

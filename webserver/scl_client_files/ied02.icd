@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <SCL xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://www.iec.ch/61850/2003/SCL">
-  <Header id="IEDServer01" nameStructure="IEDName" />
+  <Header id="IEDServer02" nameStructure="IEDName" />
   <!--Test file by WenShei-->
   <Communication>
     <SubNetwork name="node">
       <ConnectedAP iedName="IEDServer02" apName="W1">
         <Address>
-          <P type="IP">192.168.194.129</P>
+          <P type="IP">192.168.194.130</P>
           <P type="IP-SUBNET">255.255.255.0</P>
           <P type="IP-GATEWAY">192.168.194.2</P>
         </Address>
