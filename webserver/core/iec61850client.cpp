@@ -9,6 +9,7 @@
 #include <unordered_map>
 #include <vector>
 #include <unistd.h>
+#include <regex>
 
 #include "hal_thread.h"
 #include "iec61850_client.h"
@@ -18,7 +19,14 @@
 #define CLIENTMAP_FILENAME "core/iecclient.map"
 
 unsigned char log_msg_iecclient[1000];
-std::vector<std::string> ipaddresses;
+
+struct ied_t {
+    std::string ipaddr;
+    std::vector<std::pair<std::string, std::string>> rcb_dataset_list;
+};
+typedef struct ied_t IED;
+
+std::vector<IED> iedlist;
 std::unordered_map<std::string,std::string> mapping;
 std::map<std::string, std::string> controlWatch;
 
@@ -67,58 +75,92 @@ void reportCallbackFunction(void *parameter, ClientReport report)
                     write_to_address(value, mapping[object]);
                 }
                 else {
-                   sprintf(log_msg_iecclient, "  Mapping not found for %s\n", object.c_str());
+                    sprintf(log_msg_iecclient, "  Mapping not found for %s\n", object.c_str());
                     log(log_msg_iecclient);
                 }
             }
             //sample entry name  IEDServer01LogicalDevice/GGIO.Anln1.mag.f[MX], need trim away the end
         }
     }
+    else {
+        sprintf(log_msg_iecclient, "Datasetdirectory not found for %s\n", ClientReport_getRcbReference(report));
+        log(log_msg_iecclient);
+    }
 }
 
 void process_mapping() {
-
-    std::ifstream mapfile (CLIENTMAP_FILENAME);
+    std::ifstream mapfile(CLIENTMAP_FILENAME);
     if (!mapfile.is_open()) {
-        sprintf(log_msg_iecclient, "Fail to open iecclient.map\n");
-        log(log_msg_iecclient);
+        printf("Fail to open iecclient.map\n");
     }
     if (!mapfile.good()) {
-        sprintf(log_msg_iecclient, "Mapfile is not good\n    failbit=%i\n     badbit=%i\n", mapfile.fail(), mapfile.bad());
-        log(log_msg_iecclient);
+        printf("Mapfile is not good\n    failbit=%i\n     badbit=%i\n", mapfile.fail(), mapfile.bad());
     }
 
     std::string line;
-    bool ipDone = false;
-    while(!mapfile.eof()) {
+    bool iedconfigDone = false;
+    bool inIed = false;
+
+    //Get Ied details (IP addr, Report ref, dataset ref)
+    std::regex ipregex("[0-9]+.[0-9]+.[0-9]+.[0-9]+");
+    IED newied;
+    while (!mapfile.eof() && !iedconfigDone) {
         std::getline(mapfile, line);
 
         if (line.empty()) {
-            ipDone = true;
-            continue;
+            iedlist.push_back(newied);
+            iedconfigDone = true;
         }
-        
-        if (!ipDone) {
-            ipaddresses.push_back(line);
+        else if (std::regex_match(line, ipregex)) {
+            if (inIed) {
+                iedlist.push_back(newied);
+                IED temp;
+                newied = temp;
+                newied.ipaddr = line;
+            }
+            else {
+                newied.ipaddr = line;
+                inIed = true;
+            }
         }
         else {
-            std::stringstream ss(line);
+            std::stringstream ss (line);
             std::string token;
-
+            std::pair<std::string, std::string> p;
             std::getline(ss, token, ' ');
-            std::string type = token;
-
+            p.first = token;
             std::getline(ss, token, ' ');
-            std::string var = token;
+            p.second = token;
 
-            std::getline(ss, token, ' ');
-            std::string addr = token;
+            newied.rcb_dataset_list.push_back(p);
+        }
+    }
 
-            if (type.compare("CONTROL") == 0) {
-                //add to controlwatch
-            }
+    //Get iec61850 object to plc addr mapping
+    while (!mapfile.eof()) {
+        std::getline(mapfile, line);
+        std::stringstream ss(line);
+        std::string token;
 
+        std::getline(ss, token, ' ');
+        std::string type = token;
+
+        std::getline(ss, token, ' ');
+        std::string var = token;
+
+        std::getline(ss, token, ' ');
+        std::string addr = token;
+
+        if (type.compare("CONTROL") == 0) {
+            //add to controlwatch
+        }
+
+        if (addr.compare("X") != 0) {
             mapping[var] = addr;
+        }
+        else {
+            sprintf(log_msg_iecclient, "Invalid mapping for %s\n", var.c_str());
+            log(log_msg_iecclient);
         }
     }
 }
@@ -137,85 +179,72 @@ void run_iec61850_client()
     Thread_sleep(1000);
     IedClientError error;
 
-    //printf("**************SETTING UP CRCB FOR IEDONE***************\n");
-    IedConnection con1 = IedConnection_create();
-    int port1 = 11111;
-    char *hostname1 = "192.168.194.129";
+    std::vector<IedConnection> conList;
+    int port = 102;
 
-    IedConnection_connect(con1, &error, hostname1, port1);
-    ClientReportControlBlock rcb1;
+    for (int i = 0; i < iedlist.size(); i++) {
+        IED &ied = iedlist.at(i);
+        sprintf(log_msg_iecclient, "For %s:\n", ied.ipaddr.c_str());
+        log(log_msg_iecclient);
+        IedConnection con = IedConnection_create();
+        IedConnection_connect(con, &error, ied.ipaddr.c_str(), port);
 
-    if (error == IED_ERROR_OK) {
-
-        /* Read RCB values */
-        rcb1 = IedConnection_getRCBValues(
-                con1, &error, "IEDServer01LogicalDevice/LLN0.RP.Measurements01", NULL);
         if (error != IED_ERROR_OK) {
-            sprintf(log_msg_iecclient, "Fail to get RCB1 values (code: %i)\n", error);
+            sprintf(log_msg_iecclient, "    Failed to connect to %s\n", ied.ipaddr.c_str());
             log(log_msg_iecclient);
+            continue;
         }
-        if (rcb1) {
-            /* Install handler for reports */
-            LinkedList dir1 = IedConnection_getDataSetDirectory(con1, &error, "IEDServer01LogicalDevice/LLN0$Measurements", NULL);
-            IedConnection_installReportHandler(con1, "IEDServer01LogicalDevice/LLN0.RP.Measurements01", ClientReportControlBlock_getRptId(rcb1), reportCallbackFunction, dir1);
+
+        ClientReportControlBlock rcb;
+        bool isConnected = false;
+        
+        for (int j = 0; j < ied.rcb_dataset_list.size() && !isConnected; j++) {
+            std::pair<std::string,std::string> &report_dataset = ied.rcb_dataset_list.at(i);
+
+            rcb = IedConnection_getRCBValues(con, &error, report_dataset.first.c_str(), NULL);
+            if (error != IED_ERROR_OK) {
+                sprintf(log_msg_iecclient, "    Fail to get RCB[%i] values (code: %i)\n", j, error);
+                log(log_msg_iecclient);
+                continue;
+            }
+
+            LinkedList dir = IedConnection_getDataSetDirectory(con, &error, report_dataset.second.c_str(), NULL);
+            if (error != IED_ERROR_OK) {
+                sprintf(log_msg_iecclient, "    Fail to get Dataset Dir[%i] (code: %i)\n", j, error);
+            log(log_msg_iecclient);
+                continue;
+            }
+
+            IedConnection_installReportHandler(con, report_dataset.first.c_str(), ClientReportControlBlock_getRptId(rcb), reportCallbackFunction, dir);
 
             /* Set trigger options and enable report */
-            ClientReportControlBlock_setTrgOps(rcb1, TRG_OPT_DATA_UPDATE | TRG_OPT_INTEGRITY | TRG_OPT_GI);
-            ClientReportControlBlock_setRptEna(rcb1, true);
-            ClientReportControlBlock_setIntgPd(rcb1, 5000);
-            IedConnection_setRCBValues(con1, &error, rcb1, RCB_ELEMENT_RPT_ENA | RCB_ELEMENT_TRG_OPS | RCB_ELEMENT_INTG_PD, true);
+            ClientReportControlBlock_setTrgOps(rcb, TRG_OPT_DATA_UPDATE | TRG_OPT_INTEGRITY | TRG_OPT_GI);
+            ClientReportControlBlock_setRptEna(rcb, true);
+            ClientReportControlBlock_setIntgPd(rcb, 5000);
+            IedConnection_setRCBValues(con, &error, rcb, RCB_ELEMENT_RPT_ENA | RCB_ELEMENT_TRG_OPS | RCB_ELEMENT_INTG_PD, true);
 
             if (error != IED_ERROR_OK) {
-                sprintf(log_msg_iecclient, "report(con1) activation failed (code: %i)\n", error);
+                sprintf(log_msg_iecclient, "    Report activation[%i] failed (code: %i)\n", error);
                 log(log_msg_iecclient);
+                continue;
             }
+
+            isConnected = true;
+
+            ClientReportControlBlock_destroy(rcb);
+        } 
+
+        if (isConnected) {
+            sprintf(log_msg_iecclient, "    IED setup success\n");
+            log(log_msg_iecclient);
+            conList.push_back(con);
         }
-    }
-    else {
-        sprintf(log_msg_iecclient, "Cannot connect to server1: IED_ERROR %d", error);
-        log(log_msg_iecclient);
-    }
-
-    //printf("**************SETTING UP CRCB FOR IEDTWO***************\n");
-    //second connection
-
-    IedConnection con2 = IedConnection_create();
-    int port2 = 11112;
-    char *hostname2 = "192.168.194.129";
-
-    IedConnection_connect(con2, &error, hostname2, port2);
-    ClientReportControlBlock rcb2;
-
-    if (error == IED_ERROR_OK) {
-        rcb2 = IedConnection_getRCBValues(
-                con2, &error, "IEDServer02LogicalDevice/LLN0.RP.Measurements01", NULL);
-        if (error != IED_ERROR_OK) {
-            sprintf(log_msg_iecclient, "Fail to get RCB2 values (code: %i)\n", error);
+        else {
+            sprintf(log_msg_iecclient, "Failed to setup reporting\n");
             log(log_msg_iecclient);
         }
-        if (rcb2) {
-            /* Install handler for reports */
-            LinkedList dir2 = IedConnection_getDataSetDirectory(con2, &error, "IEDServer02LogicalDevice/LLN0$Measurements", NULL);
-            IedConnection_installReportHandler(con2, "IEDServer02LogicalDevice/LLN0.RP.Measurements01", ClientReportControlBlock_getRptId(rcb2), reportCallbackFunction, dir2);
-
-            /* Set trigger options and enable report */
-            ClientReportControlBlock_setTrgOps(rcb2, TRG_OPT_DATA_UPDATE | TRG_OPT_INTEGRITY | TRG_OPT_GI);
-            ClientReportControlBlock_setRptEna(rcb2, true);
-            ClientReportControlBlock_setIntgPd(rcb2, 5000);
-            IedConnection_setRCBValues(con2, &error, rcb2, RCB_ELEMENT_RPT_ENA | RCB_ELEMENT_TRG_OPS | RCB_ELEMENT_INTG_PD, true);
-
-            if (error != IED_ERROR_OK) {
-                sprintf(log_msg_iecclient, "report(con2) activation failed (code: %i)\n", error);
-                log(log_msg_iecclient);
-            }
-        }
     }
-    else {
-        sprintf(log_msg_iecclient, "Cannot connect to server2: IED_ERROR %d", error);
-        log(log_msg_iecclient);
-    }
-
-    //printf("***********************LOOPING***********************\n");
+    
     //==============================================
     //   MAIN LOOP
     //==============================================
@@ -223,9 +252,8 @@ void run_iec61850_client()
         //check for change in control values
         Thread_sleep(1000);
     }
-    //printf("***********************CLEANING***********************\n");
-    ClientReportControlBlock_destroy(rcb1);
-    ClientReportControlBlock_destroy(rcb2);
-    IedConnection_close(con1);
-    IedConnection_close(con2);
+
+    for (auto con: conList) {
+        IedConnection_close(con);
+    }
 }

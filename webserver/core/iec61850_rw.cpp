@@ -82,6 +82,8 @@ int write_to_address(MmsValue* mmsval, std::string address) {
         //not done yet
     }
     else {
+        sprintf(log_msg_iecrw, "Write address not found %s\n", address.c_str());
+        log(log_msg_iecrw);
         return 1;
     }
     pthread_mutex_unlock(&bufferLock);
