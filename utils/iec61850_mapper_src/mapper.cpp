@@ -33,6 +33,7 @@ std::unordered_map<std::string, std::string> var_addr_map;
 
 std::vector<std::string> ipaddr_buffer;
 std::vector<std::vector<std::string>> report_dataset_buffer;
+std::vector<std::string> controlVariables;
 std::vector<std::string> mapvaraddr_buffer;
 
 using namespace pugi;
@@ -158,6 +159,7 @@ void getVarAddrMapping(xml_node parent, std::string pathstring)
                 }
                 if (target == CLIENT) {
                     mapvaraddr_buffer.push_back("CONTROL " + pathstring + " " + address);
+                    controlVariables.push_back(pathstring + " " + address);
                 }
                 else if (target == SERVER) {
                     mapvaraddr_buffer.push_back(pathstring + " " + address);
@@ -231,12 +233,13 @@ int process_scl_files()
             std::cout << "Parsing SCL file" << it << "\n";
         }
 
+        get_scl_variables(sclfile);
+
         if (target == CLIENT) {
             get_IP_address(sclfile);
             get_report_dataset(sclfile);
+            controlVariables.push_back("");
         }
-            
-        get_scl_variables(sclfile);
     }
 
     return 0;
@@ -440,10 +443,19 @@ int main(int argc, char *argv[])
     else if (target == CLIENT) {
         if (!hasOutfile)
             std::cout << "\nIED Details:\n";
+        int j = 0;
         for (int i = 0; i < sclfilenames.size() && ipaddr_buffer.size() > 0; i++) {
             out << ipaddr_buffer.at(i) << std::endl;
             for (auto report_dataset: report_dataset_buffer.at(i)) {
                 out << report_dataset << std::endl;
+            }
+            for (j; j < controlVariables.size(); j++) {
+                std::string line = controlVariables.at(j);
+                if (line.empty()) {
+                    j++;
+                    break;
+                }
+                out << line << std::endl;
             }
         }
 
