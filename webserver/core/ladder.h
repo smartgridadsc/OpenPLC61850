@@ -173,8 +173,8 @@ extern std::unordered_map<std::string,std::string> mapping;
 
 //iec61850_rw.cpp
 int write_to_address(MmsValue* mmsval, std::string address);
-/*
 IEC_BOOL read_bool(std::string address);
+/*
 IEC_UINT read_int16(std::string address);
 IEC_DINT read_int32(std::string address);
 IEC_LINT read_int64(std::string address);

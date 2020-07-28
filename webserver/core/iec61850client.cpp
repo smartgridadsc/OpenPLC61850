@@ -22,13 +22,13 @@ unsigned char log_msg_iecclient[1000];
 
 struct ied_t {
     std::string ipaddr;
-    std::vector<std::pair<std::string, std::string>> rcb_dataset_list;
+    std::vector<std::pair<std::string, std::string>> rcb_dataset_list; //report -> dataset
+    std::unordered_map<std::string, IEC_BOOL> controlWatch; //iec61850 da -> ctl value
 };
 typedef struct ied_t IED;
 
 std::vector<IED> iedlist;
-std::unordered_map<std::string,std::string> mapping;
-std::map<std::string, std::string> controlWatch;
+std::unordered_map<std::string,std::string> mapping; //iec61850 da -> plc address
 
 std::string trimFC(char *entryName) {
     std::string object = "";
@@ -63,12 +63,6 @@ void reportCallbackFunction(void *parameter, ClientReport report)
                 LinkedList entry = LinkedList_get(dataSetDirectory, i);
 
                 char *entryName = (char *)entry->data;
-
-                /*
-                sprintf(log_msg_iecclient, "%s (included for reason %i): %s\n", entryName, reason, valBuffer);
-                log(log_msg_iecclient);
-                */
-            
                 std::string object = trimFC(entryName);
 
                 if (mapping.count(object)) {
@@ -79,7 +73,6 @@ void reportCallbackFunction(void *parameter, ClientReport report)
                     log(log_msg_iecclient);
                 }
             }
-            //sample entry name  IEDServer01LogicalDevice/GGIO.Anln1.mag.f[MX], need trim away the end
         }
     }
     else {
@@ -88,13 +81,37 @@ void reportCallbackFunction(void *parameter, ClientReport report)
     }
 }
 
+void checkControlChanges() {
+    for (IED &ied: iedlist) {
+        for(auto &it: ied.controlWatch) {
+            bool newvalue = read_bool(mapping[it.first]);
+
+            if (newvalue != it.second) {
+                it.second = newvalue;
+                if (newvalue) {
+                    sprintf(log_msg_iecclient, "Change in value detected (%s) = true\n", it.first.c_str());
+                }
+                else {
+                    sprintf(log_msg_iecclient, "Change in value detected (%s) = false\n", it.first.c_str());
+                }
+                log(log_msg_iecclient);
+            }
+            else {
+                //no change
+            }            
+        }
+    }
+}
+
 void process_mapping() {
     std::ifstream mapfile(CLIENTMAP_FILENAME);
     if (!mapfile.is_open()) {
-        printf("Fail to open iecclient.map\n");
+        sprintf(log_msg_iecclient, "Fail to open iecclient.map\n");
+        log(log_msg_iecclient);
     }
     if (!mapfile.good()) {
-        printf("Mapfile is not good\n    failbit=%i\n     badbit=%i\n", mapfile.fail(), mapfile.bad());
+        sprintf(log_msg_iecclient, "Mapfile is not good\n    failbit=%i\n     badbit=%i\n", mapfile.fail(), mapfile.bad());
+        log(log_msg_iecclient);
     }
 
     std::string line;
@@ -131,8 +148,13 @@ void process_mapping() {
             p.first = token;
             std::getline(ss, token, ' ');
             p.second = token;
-
-            newied.rcb_dataset_list.push_back(p);
+            
+            if(p.second.at(0) == '%') {
+                newied.controlWatch[p.first] = false;
+            }
+            else {
+                newied.rcb_dataset_list.push_back(p);
+            }
         }
     }
 
@@ -152,7 +174,7 @@ void process_mapping() {
         std::string addr = token;
 
         if (type.compare("CONTROL") == 0) {
-            //add to controlwatch
+            
         }
 
         if (addr.compare("X") != 0) {
@@ -169,7 +191,6 @@ void run_iec61850_client()
 {
     sprintf(log_msg_iecclient, "Starting IEC61850CLIENT\n");
     log(log_msg_iecclient);
-    //read clientconfig
 
     //==============================================
     //   PROCESS MAPPING FILE
@@ -197,6 +218,10 @@ void run_iec61850_client()
 
         ClientReportControlBlock rcb;
         bool isConnected = false;
+        if (ied.rcb_dataset_list.size() == 0) {
+            sprintf(log_msg_iecclient, "    No RCB in mappingfile\n");
+            log(log_msg_iecclient);
+        }
         
         for (int j = 0; j < ied.rcb_dataset_list.size() && !isConnected; j++) {
             std::pair<std::string,std::string> &report_dataset = ied.rcb_dataset_list.at(i);
@@ -244,13 +269,14 @@ void run_iec61850_client()
             log(log_msg_iecclient);
         }
     }
-    
+
     //==============================================
     //   MAIN LOOP
     //==============================================
     while (run_iec61850) {
         //check for change in control values
-        Thread_sleep(1000);
+        Thread_sleep(100);
+        checkControlChanges();
     }
 
     for (auto con: conList) {
