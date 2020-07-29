@@ -1,20 +1,20 @@
-#include <iostream>
 #include <fstream>
-#include <sstream>
+#include <iostream>
+#include <map>
 #include <pthread.h>
+#include <regex>
+#include <sstream>
 #include <stdlib.h>
 #include <string>
 #include <time.h>
-#include <map>
+#include <unistd.h>
 #include <unordered_map>
 #include <vector>
-#include <unistd.h>
-#include <regex>
 
 #include "hal_thread.h"
 #include "iec61850_client.h"
 
-#include "ladder.h" 
+#include "ladder.h"
 
 #define CLIENTMAP_FILENAME "core/iecclient.map"
 
@@ -23,14 +23,16 @@ unsigned char log_msg_iecclient[1000];
 struct ied_t {
     std::string ipaddr;
     std::vector<std::pair<std::string, std::string>> rcb_dataset_list; //report -> dataset
-    std::unordered_map<std::string, IEC_BOOL> controlWatch; //iec61850 da -> ctl value
+    std::unordered_map<std::string, IEC_BOOL> controlWatch;            //iec61850 da -> ctl value
 };
 typedef struct ied_t IED;
 
+std::vector<IedConnection> conList;
 std::vector<IED> iedlist;
-std::unordered_map<std::string,std::string> mapping; //iec61850 da -> plc address
+std::unordered_map<std::string, std::string> mapping; //iec61850 da -> plc address
 
-std::string trimFC(char *entryName) {
+std::string trimFC(char *entryName)
+{
     std::string object = "";
 
     for (int i = 0; i < strlen(entryName) && entryName[i] != '['; i++) {
@@ -55,7 +57,7 @@ void reportCallbackFunction(void *parameter, ClientReport report)
 
             if (dataSetValues) {
                 MmsValue *value = MmsValue_getElement(dataSetValues, i);
-               
+
                 if (value) {
                     MmsValue_printToBuffer(value, valBuffer, 500);
                 }
@@ -81,29 +83,73 @@ void reportCallbackFunction(void *parameter, ClientReport report)
     }
 }
 
-void checkControlChanges() {
-    for (IED &ied: iedlist) {
-        for(auto &it: ied.controlWatch) {
+void sendOperateCommand(int iedindex, std::string target, bool newVal)
+{
+    int temp = target.find('.');
+    int cutoff = target.find('.', temp + 1);
+    std::string trimmedtarget = target.substr(0, cutoff);
+
+    IedConnection con = conList.at(iedindex);
+    if (con == NULL) {
+        printf("Connection had failed for this IED, not sending operate command\n");
+        return;
+    }
+
+    ControlObjectClient control = ControlObjectClient_create(trimmedtarget.c_str(), con);
+
+    if (!control) {
+        sprintf(log_msg_iecclient, "Failed to create ControltObjectClient for %s\n", trimmedtarget.c_str());
+        log(log_msg_iecclient);
+
+        return;
+    }
+
+    MmsValue *ctlVal = MmsValue_newBoolean(newVal);
+
+    ControlObjectClient_setOrigin(control, NULL, 3);
+
+    if (ControlObjectClient_operate(control, ctlVal, 0 /* operate now */)) {
+        sprintf(log_msg_iecclient, "%s operated successfully\n", trimmedtarget.c_str());
+        log(log_msg_iecclient);
+    }
+    else {
+        sprintf(log_msg_iecclient, "Failed to operate %s\n", trimmedtarget.c_str());
+        log(log_msg_iecclient);
+    }
+
+    MmsValue_delete(ctlVal);
+
+    ControlObjectClient_destroy(control);
+}
+
+void checkControlChanges()
+{
+    for (int i = 0; i < iedlist.size(); i++) {
+        IED &ied = iedlist.at(i);
+        for (auto &it : ied.controlWatch) {
             bool newvalue = read_bool(mapping[it.first]);
 
             if (newvalue != it.second) {
                 it.second = newvalue;
                 if (newvalue) {
+                    sendOperateCommand(i, it.first, true);
                     sprintf(log_msg_iecclient, "Change in value detected (%s) = true\n", it.first.c_str());
                 }
                 else {
+                    sendOperateCommand(i, it.first, false);
                     sprintf(log_msg_iecclient, "Change in value detected (%s) = false\n", it.first.c_str());
                 }
                 log(log_msg_iecclient);
             }
             else {
                 //no change
-            }            
+            }
         }
     }
 }
 
-void process_mapping() {
+void process_mapping()
+{
     std::ifstream mapfile(CLIENTMAP_FILENAME);
     if (!mapfile.is_open()) {
         sprintf(log_msg_iecclient, "Fail to open iecclient.map\n");
@@ -141,15 +187,15 @@ void process_mapping() {
             }
         }
         else {
-            std::stringstream ss (line);
+            std::stringstream ss(line);
             std::string token;
             std::pair<std::string, std::string> p;
             std::getline(ss, token, ' ');
             p.first = token;
             std::getline(ss, token, ' ');
             p.second = token;
-            
-            if(p.second.at(0) == '%') {
+
+            if (p.second.at(0) == '%') {
                 newied.controlWatch[p.first] = false;
             }
             else {
@@ -174,7 +220,6 @@ void process_mapping() {
         std::string addr = token;
 
         if (type.compare("CONTROL") == 0) {
-            
         }
 
         if (addr.compare("X") != 0) {
@@ -198,9 +243,8 @@ void run_iec61850_client()
     process_mapping();
 
     Thread_sleep(1000);
-    IedClientError error;
 
-    std::vector<IedConnection> conList;
+    IedClientError error;
     int port = 102;
 
     for (int i = 0; i < iedlist.size(); i++) {
@@ -213,6 +257,7 @@ void run_iec61850_client()
         if (error != IED_ERROR_OK) {
             sprintf(log_msg_iecclient, "    Failed to connect to %s\n", ied.ipaddr.c_str());
             log(log_msg_iecclient);
+            conList.push_back(NULL);
             continue;
         }
 
@@ -222,9 +267,9 @@ void run_iec61850_client()
             sprintf(log_msg_iecclient, "    No RCB in mappingfile\n");
             log(log_msg_iecclient);
         }
-        
+
         for (int j = 0; j < ied.rcb_dataset_list.size() && !isConnected; j++) {
-            std::pair<std::string,std::string> &report_dataset = ied.rcb_dataset_list.at(i);
+            std::pair<std::string, std::string> &report_dataset = ied.rcb_dataset_list.at(i);
 
             rcb = IedConnection_getRCBValues(con, &error, report_dataset.first.c_str(), NULL);
             if (error != IED_ERROR_OK) {
@@ -236,7 +281,7 @@ void run_iec61850_client()
             LinkedList dir = IedConnection_getDataSetDirectory(con, &error, report_dataset.second.c_str(), NULL);
             if (error != IED_ERROR_OK) {
                 sprintf(log_msg_iecclient, "    Fail to get Dataset Dir[%i] (code: %i)\n", j, error);
-            log(log_msg_iecclient);
+                log(log_msg_iecclient);
                 continue;
             }
 
@@ -257,7 +302,7 @@ void run_iec61850_client()
             isConnected = true;
 
             ClientReportControlBlock_destroy(rcb);
-        } 
+        }
 
         if (isConnected) {
             sprintf(log_msg_iecclient, "    IED setup success\n");
@@ -267,6 +312,7 @@ void run_iec61850_client()
         else {
             sprintf(log_msg_iecclient, "Failed to setup reporting\n");
             log(log_msg_iecclient);
+            conList.push_back(NULL);
         }
     }
 
@@ -279,7 +325,7 @@ void run_iec61850_client()
         checkControlChanges();
     }
 
-    for (auto con: conList) {
+    for (auto con : conList) {
         IedConnection_close(con);
     }
 }
