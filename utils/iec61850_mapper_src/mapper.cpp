@@ -183,19 +183,29 @@ void get_scl_variables(xml_document &sclfile)
     xml_node ld = ied.child("AccessPoint").child("Server").child("LDevice");
     std::string ld_name = ld.attribute("inst").value();
 
+    std::unordered_map<std::string, std::string> lntype_lninst_mapping;
+    
+    //Get map of ln type -> ln instance
+    for (xml_node ln_node = ld.child("LN"); ln_node; ln_node = ln_node.next_sibling("LN")) {
+        std::string ln_type = ln_node.attribute("lnType").value();
+        std::string ln_class = ln_node.attribute("lnClass").value();
+        std::string ln_inst = ln_node.attribute("inst").value();
+
+        lntype_lninst_mapping[ln_type] = ln_class + ln_inst;
+    }
+
     std::unordered_map<std::string, std::string> do_ln_mapping;
 
     //Get map of do_type -> (ln_name + do_name)
     for (xml_node ln_node = dtt.child("LNodeType"); ln_node; ln_node = ln_node.next_sibling("LNodeType")) {
-        xml_attribute ln_name = ln_node.attribute("id");
-        std::string ln_namestring = ln_name.value();
+        std::string ln_type = ln_node.attribute("id").value();
 
         for (xml_node do_node = ln_node.child("DO"); do_node; do_node = do_node.next_sibling("DO")) {
             xml_attribute do_name = do_node.attribute("name");
             xml_attribute do_type = do_node.attribute("type");
             std::string do_namestring = do_name.value();
 
-            do_ln_mapping[do_type.value()] = ied_name + ld_name + DEVICE_DELIM + ln_namestring + DELIMITER + do_namestring;
+            do_ln_mapping[do_type.value()] = ied_name + ld_name + DEVICE_DELIM + lntype_lninst_mapping[ln_type] + DELIMITER + do_namestring;
         }
     }
 
