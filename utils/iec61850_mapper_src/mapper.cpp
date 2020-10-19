@@ -149,7 +149,7 @@ void getVarAddrMapping(xml_node parent, std::string pathstring)
                     mapvaraddr_buffer.push_back("MONITOR " + pathstring + " " + address);
                 }
                 else if (target == SERVER) {
-                    mapvaraddr_buffer.push_back(pathstring + " " + address);
+                    mapvaraddr_buffer.push_back("MONITOR " + pathstring + " " + address);
                 }
             }
             else if (prop_name.compare("sControlVar") == 0 && !prop_value.empty()) {
@@ -162,7 +162,7 @@ void getVarAddrMapping(xml_node parent, std::string pathstring)
                     controlVariables.push_back(pathstring + " " + address);
                 }
                 else if (target == SERVER) {
-                    mapvaraddr_buffer.push_back(pathstring + " " + address);
+                    mapvaraddr_buffer.push_back("CONTROL " + pathstring + " " + address);
                 }
             }
         }
