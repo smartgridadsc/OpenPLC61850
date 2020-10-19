@@ -145,8 +145,8 @@ int waitForClient(int socket_fd, int protocol_type)
     else if (protocol_type == ENIP_PROTOCOL)
         run_server = &run_enip;
     
-    sprintf(log_msg, "Server: waiting for new client...\n");
-    log(log_msg);
+    //sprintf(log_msg, "Server: waiting for new client...\n");
+    //log(log_msg);
 
     client_len = sizeof(client_addr);
     while (*run_server)
@@ -210,8 +210,8 @@ void *handleConnections(void *arguments)
     else if (protocol_type == ENIP_PROTOCOL)
         run_server = &run_enip;
 
-    sprintf(log_msg, "Server: Thread created for client ID: %d\n", client_fd);
-    log(log_msg);
+    //sprintf(log_msg, "Server: Thread created for client ID: %d\n", client_fd);
+    //log(log_msg);
 
     while(*run_server)
     {
@@ -224,13 +224,13 @@ void *handleConnections(void *arguments)
             // something has  gone wrong or the client has closed connection
             if (messageSize == 0)
             {
-                sprintf(log_msg, "Modbus Server: client ID: %d has closed the connection\n", client_fd);
-                log(log_msg);
+                //sprintf(log_msg, "Modbus Server: client ID: %d has closed the connection\n", client_fd);
+                //log(log_msg);
             }
             else
             {
-                sprintf(log_msg, "Modbus Server: Something is wrong with the  client ID: %d message Size : %i\n", client_fd, messageSize);
-                log(log_msg);
+                //sprintf(log_msg, "Modbus Server: Something is wrong with the  client ID: %d message Size : %i\n", client_fd, messageSize);
+                //log(log_msg);
             }
             break;
         }
@@ -239,8 +239,8 @@ void *handleConnections(void *arguments)
     }
     //printf("Debug: Closing client socket and calling pthread_exit in server.cpp\n");
     close(client_fd);
-    sprintf(log_msg, "Terminating Modbus connections thread\r\n");
-    log(log_msg);
+    //sprintf(log_msg, "Terminating Modbus connections thread\r\n");
+    //log(log_msg);
     pthread_exit(NULL);
 }
 
@@ -279,8 +279,8 @@ void startServer(uint16_t port, int protocol_type)
             int arguments[2];
             pthread_t thread;
             int ret = -1;
-            sprintf(log_msg, "Server: Client accepted! Creating thread for the new client ID: %d...\n", client_fd);
-            log(log_msg);
+            //sprintf(log_msg, "Server: Client accepted! Creating thread for the new client ID: %d...\n", client_fd);
+            //log(log_msg);
             arguments[0] = client_fd;
             arguments[1] = protocol_type;
             ret = pthread_create(&thread, NULL, handleConnections, (void*)arguments);

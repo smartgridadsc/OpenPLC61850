@@ -28,6 +28,7 @@
 #include <unordered_map>
 #include <string>
 #include "iec61850_client.h"
+#include "iec61850_server.h"
 
 #define MODBUS_PROTOCOL     0
 #define DNP3_PROTOCOL       1
@@ -166,16 +167,22 @@ int readPersistentStorage();
 
 //iec61850server.cpp
 void startIec61850Server(int port);
+extern std::unordered_map<std::string,std::string> serverside_mapping;
+
+//static_model.cpp
+extern IedModel iedModel;
 
 //iec61850client.cpp
 void run_iec61850_client();
-extern std::unordered_map<std::string,std::string> mapping;
+extern std::unordered_map<std::string,std::string> clientside_mapping;
 
 //iec61850_rw.cpp
 int write_to_address(MmsValue* mmsval, std::string address);
-IEC_BOOL read_bool(std::string address);
-/*
-IEC_UINT read_int16(std::string address);
-IEC_DINT read_int32(std::string address);
-IEC_LINT read_int64(std::string address);
-*/
+bool read_bool(std::string address);
+int16_t read_int16(std::string address);
+int32_t read_int32(std::string address);
+int64_t read_int64(std::string address);
+uint16_t read_uint16(std::string address);
+uint32_t read_uint32(std::string address);
+float read_float(std::string address);
+double read_double(std::string address);

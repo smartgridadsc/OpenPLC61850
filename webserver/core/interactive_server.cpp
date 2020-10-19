@@ -104,7 +104,7 @@ void *iec61850Thread(void *arg)
     
     startIec61850Server(iec61850_port);
 
-    pthread_join(iec61850_thread, NULL);
+    pthread_join(iec61850client, NULL);
 }
 
 //-----------------------------------------------------------------------------

@@ -17,6 +17,7 @@
 #include "ladder.h"
 
 #define CLIENTMAP_FILENAME "core/iecclient.map"
+#define INTEGRITY_PERIOD 1000
 
 unsigned char log_msg_iecclient[1000];
 
@@ -29,7 +30,7 @@ typedef struct ied_t IED;
 
 std::vector<IedConnection> conList;
 std::vector<IED> iedlist;
-std::unordered_map<std::string, std::string> mapping; //iec61850 da -> plc address
+std::unordered_map<std::string, std::string> clientside_mapping; //iec61850 da -> plc address
 
 std::string trimFC(char *entryName)
 {
@@ -59,6 +60,9 @@ std::string trimReportNum(std::string str)
 
 void reportCallbackFunction(void *parameter, ClientReport report)
 {
+    //sprintf(log_msg_iecclient, "Received report for  %s with rptId %s\n", ClientReport_getRcbReference(report), ClientReport_getRptId(report));
+    //log(log_msg_iecclient);
+    
     //read from config to determine what element is of what type and writes to what
     MmsValue *dataSetValues = ClientReport_getDataSetValues(report);
 
@@ -82,8 +86,8 @@ void reportCallbackFunction(void *parameter, ClientReport report)
                 char *entryName = (char *)entry->data;
                 std::string object = trimFC(entryName);
 
-                if (mapping.count(object)) {
-                    write_to_address(value, mapping[object]);
+                if (clientside_mapping.count(object)) {
+                    write_to_address(value, clientside_mapping[object]);
                 }
                 else {
                     sprintf(log_msg_iecclient, "  Mapping not found for %s\n", object.c_str());
@@ -142,7 +146,7 @@ void checkControlChanges()
     for (int i = 0; i < iedlist.size(); i++) {
         IED &ied = iedlist.at(i);
         for (auto &it : ied.controlWatch) {
-            bool newvalue = read_bool(mapping[it.first]);
+            bool newvalue = read_bool(clientside_mapping[it.first]);
 
             if (newvalue != it.second) {
                 it.second = newvalue;
@@ -168,7 +172,7 @@ void checkControlChanges()
                 else {
                     sprintf(log_msg_iecclient, "Change in value detected (%s) = false\n", it.first.c_str());
                     sendOperateCommand(i, it.first, false);
-                }
+                } 
                 log(log_msg_iecclient);
             }
             else {
@@ -178,16 +182,18 @@ void checkControlChanges()
     }
 }
 
-void process_mapping()
+void process_client_mapping()
 {
     std::ifstream mapfile(CLIENTMAP_FILENAME);
     if (!mapfile.is_open()) {
         sprintf(log_msg_iecclient, "Fail to open iecclient.map\n");
         log(log_msg_iecclient);
+        return;
     }
     if (!mapfile.good()) {
-        sprintf(log_msg_iecclient, "Mapfile is not good\n    failbit=%i\n     badbit=%i\n", mapfile.fail(), mapfile.bad());
+        sprintf(log_msg_iecclient, "Client Mapfile is not good\n    failbit=%i\n     badbit=%i\n", mapfile.fail(), mapfile.bad());
         log(log_msg_iecclient);
+        return;
     }
 
     std::string line;
@@ -274,7 +280,7 @@ void process_mapping()
         }
 
         if (addr.compare("X") != 0) {
-            mapping[var] = addr;
+            clientside_mapping[var] = addr;
         }
         else {
             sprintf(log_msg_iecclient, "Invalid mapping for %s\n", var.c_str());
@@ -282,6 +288,8 @@ void process_mapping()
         }
     }
 
+    //print for debugging
+    /*
     sprintf(log_msg_iecclient, "IEDlist size = %i\n", iedlist.size());
     log(log_msg_iecclient);
     for (int i = 0; i < iedlist.size(); i++) {
@@ -302,6 +310,7 @@ void process_mapping()
             }
         }
     }
+    */
 }
 
 void run_iec61850_client()
@@ -310,9 +319,9 @@ void run_iec61850_client()
     log(log_msg_iecclient);
 
     //==============================================
-    //   PROCESS MAPPING FILE
+    //   CONNECT TO IEDS AND SETUP REPORT HANDLER
     //==============================================
-    process_mapping();
+    process_client_mapping();
 
     Thread_sleep(1000);
 
@@ -365,9 +374,9 @@ void run_iec61850_client()
                 log(log_msg_iecclient);
 
                 /* Set trigger options and enable report */
-                ClientReportControlBlock_setTrgOps(rcb, TRG_OPT_DATA_UPDATE | TRG_OPT_INTEGRITY | TRG_OPT_GI);
+                ClientReportControlBlock_setTrgOps(rcb, TRG_OPT_DATA_UPDATE | TRG_OPT_INTEGRITY | TRG_OPT_GI | TRG_OPT_DATA_CHANGED);
                 ClientReportControlBlock_setRptEna(rcb, true);
-                ClientReportControlBlock_setIntgPd(rcb, 5000);
+                ClientReportControlBlock_setIntgPd(rcb, INTEGRITY_PERIOD);
                 IedConnection_setRCBValues(con, &error, rcb, RCB_ELEMENT_RPT_ENA | RCB_ELEMENT_TRG_OPS | RCB_ELEMENT_INTG_PD, true);
 
                 if (error != IED_ERROR_OK) {

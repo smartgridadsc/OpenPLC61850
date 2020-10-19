@@ -2,6 +2,9 @@
 #include <stdio.h>
 #include <iostream>
 #include <time.h>
+#include <vector>
+#include <fstream>
+#include <sstream>
 
 #include "iec61850_server.h"
 #include "hal_thread.h"
@@ -11,67 +14,196 @@
 
 #define OPLC_CYCLE  50000000
 
-extern IedModel iedModel;
-
-IedServer iedServer = NULL;
+#define SERVERMAP_FILENAME "core/iecserver.map"
 
 unsigned char log_msg_iecserver[1000];
 
+IedServer iedServer = NULL;
+
+std::vector<std::string> control_nodes;
+std::vector<std::string> monitor_nodes;
+std::unordered_map<std::string, std::string> serverside_mapping; //iec61850 da -> plc address
+
 static ControlHandlerResult
-controlHandlerForBinaryOutput(ControlAction action, void* parameter, MmsValue* value, bool test)
-{
-    uint64_t timestamp = Hal_getTimeInMs();
-
-    sprintf(log_msg_iecserver, "control handler called\n");
-    log(log_msg_iecserver);
-    sprintf(log_msg_iecserver, "  ctlNum: %i\n", ControlAction_getCtlNum(action));
-    log(log_msg_iecserver);
-
-    ClientConnection clientCon = ControlAction_getClientConnection(action);
-
-    if (clientCon) {
-        sprintf(log_msg_iecserver, "Control from client %s\n", ClientConnection_getPeerAddress(clientCon));
-        log(log_msg_iecserver);
-    }
-    else {
-        sprintf(log_msg_iecserver, "clientCon == NULL!\n", ClientConnection_getPeerAddress(clientCon));
-        log(log_msg_iecserver);
-    }
-
-    if (parameter == IEDMODEL_LogicalDevice_GGIO5_SPCSO) {
-        //IedServer_updateUTCTimeAttributeValue(iedServer, IEDMODEL_LogicalDevice_GGIO5_SPCSO_Oper_T, timestamp);
-        IedServer_updateAttributeValue(iedServer, IEDMODEL_LogicalDevice_GGIO5_SPCSO_Oper_ctlVal, value);
-    }
-    else
+controlHandler(ControlAction action, void* parameter, MmsValue* value, bool test) {
+    if (test) {
         return CONTROL_RESULT_FAILED;
+    }
 
-    return CONTROL_RESULT_OK;
+    std::string &node_string = *(static_cast<std::string*>(parameter));
+
+    sprintf(log_msg_iecserver, "ControlHandler called for %s\n", node_string.c_str());
+    log(log_msg_iecserver);
+
+    write_to_address(value, serverside_mapping[node_string]);
 }
+
+void update_server() {
+    IedServer_lockDataModel(iedServer);
+
+    for (std::string &da_string : monitor_nodes) {
+        DataAttribute* da = (DataAttribute *) IedModel_getModelNodeByObjectReference(&iedModel, da_string.c_str());
+        if (da == NULL) {
+            sprintf(log_msg_iecserver, "DataAttribute not found for %s\n", da_string.c_str());
+            log(log_msg_iecserver);
+            continue;
+        }
+        
+        if (!serverside_mapping.count(da_string)) {
+            sprintf(log_msg_iecserver, "Mapping not found for %s\n", da_string.c_str());
+            log(log_msg_iecserver);
+            continue;
+        }
+        std::string address = serverside_mapping[da_string];
+
+        MmsValue* value;
+        switch(da->type) {
+            case IEC61850_BOOLEAN:
+            {
+                bool temp = read_bool(address);
+                value = MmsValue_newBoolean(temp);
+                break;
+            }
+            case IEC61850_INT16:
+            {
+                int16_t temp = read_int16(address);
+                value = MmsValue_newIntegerFromInt16(temp);
+                break;
+            }
+            case IEC61850_INT32:
+            {
+                int32_t temp = read_int32(address);
+                value = MmsValue_newIntegerFromInt32(temp);
+                break;
+            }
+            case IEC61850_INT64:
+            {
+                int64_t temp = read_int64(address);
+                value = MmsValue_newIntegerFromInt64(temp);
+                break;
+            }
+            case IEC61850_INT16U:
+            {
+                uint16_t temp = read_uint16(address);
+                value = MmsValue_newUnsigned(temp);
+                break;
+            }
+            case IEC61850_INT32U:
+            {
+                uint32_t temp = read_uint32(address);
+                value = MmsValue_newUnsignedFromUint32(temp);
+                break;
+            }
+            case IEC61850_FLOAT32:
+            {
+                float temp = read_float(address);
+                value = MmsValue_newFloat(temp);
+                break;
+            }
+            case IEC61850_FLOAT64:
+            {
+                double temp = read_double(address);
+                value = MmsValue_newDouble(temp);
+                break;
+            }
+            default:
+            {   
+                sprintf(log_msg_iecserver, "Unsupported DA type(%i) for %s\n", da->type, da_string.c_str());
+                log(log_msg_iecserver);
+                break;
+            }  
+        }
+        
+        IedServer_updateAttributeValue(iedServer, da, value);
+    }
+
+    IedServer_unlockDataModel(iedServer);
+}
+
+void set_control_handlers() {
+    for (std::string &node_string : control_nodes) {
+        sprintf(log_msg_iecserver, "Setting control handler for %s\n", node_string.c_str());
+        log(log_msg_iecserver);
+
+        DataObject* data_object = (DataObject *) IedModel_getModelNodeByObjectReference(&iedModel, node_string.c_str());
+
+        IedServer_setControlHandler(iedServer, data_object, (ControlHandler) controlHandler, static_cast<void*>(&node_string));
+    }
+}
+
+void process_server_mapping() {
+
+    std::ifstream mapfile(SERVERMAP_FILENAME);
+    if (!mapfile.is_open()) {
+        sprintf(log_msg_iecserver, "Fail to open iecserver.map\n");
+        log(log_msg_iecserver);
+        return;
+    }
+    if (!mapfile.good()) {
+        sprintf(log_msg_iecserver, "Server Mapfile is not good\n    failbit=%i\n     badbit=%i\n", mapfile.fail(), mapfile.bad());
+        log(log_msg_iecserver);
+        return;
+    }
+    
+    std::string line;
+    std::string type, reference, address;
+    while(!mapfile.eof()) {
+        std::getline(mapfile, line);
+
+        std::stringstream ss(line);
+        std::string token;
+        std::getline(ss, token, ' ');
+        type = token;
+        std::getline(ss, token, ' ');
+        reference = token;
+        std::getline(ss, token, ' ');
+        address = token;
+        
+        if (type.compare("MONITOR") == 0) {
+            monitor_nodes.push_back(reference);
+        }
+        else if (type.compare("CONTROL") == 0) {
+            int index = reference.find(".");
+            int cutoff = reference.find(".", index+1);
+            reference = reference.substr(0, cutoff);
+            control_nodes.push_back(reference);
+        }
+
+        serverside_mapping[reference] = address;
+    }
+
+    /*
+    sprintf(log_msg_iecserver, "MONITOR NODES:\n");
+    log(log_msg_iecserver);
+    for (std::string &str : monitor_nodes) {
+        sprintf(log_msg_iecserver, "%s\n", str.c_str());
+        log(log_msg_iecserver);
+    }
+
+    sprintf(log_msg_iecserver, "CONTROL NODES:\n");
+    log(log_msg_iecserver);
+    for (std::string &str : control_nodes) {
+        sprintf(log_msg_iecserver, "%s\n", str.c_str());
+        log(log_msg_iecserver);
+    }
+    */
+
+    printf("mapping done\n");
+}
+
 
 void startIec61850Server(int port) 
 {
+    sprintf(log_msg_iecserver, "Starting IEC61850SERVER\n");
+    log(log_msg_iecserver);
+    
     iedServer = IedServer_create(&iedModel);
 
-    //Map objects to addresses (maybe map during compilation time)
-
-    //IedServer_setControlHandler();
-    //report sending
+    process_server_mapping();
 
     IedServer_setWriteAccessPolicy(iedServer, IEC61850_FC_ALL, ACCESS_POLICY_ALLOW);
 
-    IedServer_setControlHandler(
-            iedServer, 
-            IEDMODEL_LogicalDevice_GGIO5_SPCSO,
-            (ControlHandler) controlHandlerForBinaryOutput,
-            IEDMODEL_LogicalDevice_GGIO5_SPCSO);
-
-    //Initialize values
-    DataAttribute* ctlVal = (DataAttribute*) 
-                IedModel_getModelNodeByObjectReference(&iedModel, "WAGO61850ServerLogicalDevice/GGIO5.SPCSO.Oper.ctlVal");
-    MmsValue* mmstrue = MmsValue_newBoolean(true);
-    MmsValue* mmsfalse = MmsValue_newBoolean(false);
-    ctlVal->mmsValue = mmsfalse;
-
+    set_control_handlers();
 
     //start server
     IedServer_start(iedServer, port);
@@ -83,40 +215,16 @@ void startIec61850Server(int port)
         exit(-1);
     }
 
-    // Continuously update
-    struct timespec timer_start;
-    clock_gettime(CLOCK_MONOTONIC, &timer_start);
-
-
     //==============================================
     //   MAIN LOOP
     //==============================================
+    struct timespec timer_start;
+    clock_gettime(CLOCK_MONOTONIC, &timer_start);
+    
     while(run_iec61850) {
-        /*
-        //mutex lock buffer
-        pthread_mutex_lock(&bufferLock);
-
-        //update values of objects in IedServer to buffer
-
-        //mutex release
-        
-        IedServer_lockDataModel(iedServer);
-        
-        //bool boolean = MmsValue_getBoolean(ctlVal->mmsValue);
-
-        //std::cout << "print this: [" << boolean << "]\n";
-
-        IedServer_unlockDataModel(iedServer);
-        
-        //mutex lock buffer
-
-        //update values of objects in IedServer to buffer
-
-        //mutex release
-        pthread_mutex_unlock(&bufferLock);
-
-        sleep_until(&timer_start, OPLC_CYCLE);
-        */
+        update_server();
+        //sleep_until(&timer_start, OPLC_CYCLE);
+        Thread_sleep(500);
     }
 
     //clean up
