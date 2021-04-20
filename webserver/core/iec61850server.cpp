@@ -40,7 +40,7 @@ controlHandler(ControlAction action, void* parameter, MmsValue* value, bool test
 
 void update_server() {
     IedServer_lockDataModel(iedServer);
-
+    bool isSupported;
     for (std::string &da_string : monitor_nodes) {
         DataAttribute* da = (DataAttribute *) IedModel_getModelNodeByObjectReference(&iedModel, da_string.c_str());
         if (da == NULL) {
@@ -57,6 +57,7 @@ void update_server() {
         std::string address = serverside_mapping[da_string];
 
         MmsValue* value;
+        isSupported = true;
         switch(da->type) {
             case IEC61850_BOOLEAN:
             {
@@ -110,11 +111,12 @@ void update_server() {
             {   
                 sprintf(log_msg_iecserver, "Unsupported DA type(%i) for %s\n", da->type, da_string.c_str());
                 log(log_msg_iecserver);
+                isSupported = false;
                 break;
             }  
         }
         
-        IedServer_updateAttributeValue(iedServer, da, value);
+        if (isSupported) IedServer_updateAttributeValue(iedServer, da, value);
     }
 
     IedServer_unlockDataModel(iedServer);
