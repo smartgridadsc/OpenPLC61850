@@ -14,5 +14,6 @@ The OpenPLC+ installer is not fully implemented, only works for Linux.
 
 Some scripts may not have executable permissions set, please ensure that all scripts can be executed.
 
+# Acknowledgement
 
-
+This work is supported by the National Research Foundation, Singapore, Singapore University of Technology and Design under its National Satellite of Excellence in Design Science and Technology for Secure Critical Infrastructure Grant (NSoE_DeST-SCI2019-0005).
