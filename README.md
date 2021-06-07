@@ -1,12 +1,14 @@
 # OpenPLC+
 
-OpenPLC+ is an extension of OpenPLC (https://github.com/thiagoralves/OpenPLC_v3) by Thiago Alves.
+OpenPLC+ is an extension of OpenPLC (https://github.com/thiagoralves/OpenPLC_v3) by Thiago Alves. 
+
+OpenPLC+ is compatible with the IEC61850 protocol and runs an IEC61850 server and also a client for communicating with other IEC61850 devices.
 
 OpenPLC+ supports the IEC61850 protocol using libIEC61850 (https://libiec61850.com/libiec61850/) and pugixml (https://pugixml.org/).
 
 # Installation
 
-The OpenPLC+ installer is not fully implemented, only works for Linux.
+The OpenPLC+ installer only works for Linux.
 
 <br/>`git clone https://github.com/smartgridadsc/openplcplus`
 <br/>`cd OpenPLC+`

@@ -48,6 +48,9 @@ IEC_UINT *int_memory[BUFFER_SIZE];
 IEC_DINT *dint_memory[BUFFER_SIZE];
 IEC_LINT *lint_memory[BUFFER_SIZE];
 
+//Special Functions
+IEC_LINT *special_functions[BUFFER_SIZE];
+
 
 #define __LOCATED_VAR(type, name, ...) type __##name;
 #include "LOCATED_VARIABLES.h"

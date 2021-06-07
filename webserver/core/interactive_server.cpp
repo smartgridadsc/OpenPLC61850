@@ -1,3 +1,6 @@
+//
+// Modified for OpenPLC+
+//
 //-----------------------------------------------------------------------------
 // Copyright 2018 Thiago Alves
 // This file is part of the OpenPLC Software Stack.

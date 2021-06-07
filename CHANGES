@@ -1,0 +1,88 @@
+FIRST RELEASE | DATE WHEN RELEASED
+
+    ******************** Additions: ********************
+    1. dir utils/iec61850_mapper_src
+	    contains source code for mapper tool and pugixml
+
+    2. dir libiec61850_src
+	    contains source code and prebuilt static library for libIEC61850
+
+    3. dir webserver/scl_server_files
+	    directory containing SCL files for IEC61850 server
+
+    4. dir webserver/scl_client_files
+	    directory containing SCL files for IEC61850 client
+
+    5. file webserver/active_scl
+	    contains filename of current SCL to be used for IEC61850 server
+
+    6. file webserver/core/iec61850_rw.cpp
+	    contains PLC memory read/write functions for IEC61850 server and client
+    		ADDRESS getAddress(std::string address)
+    		bool read_bool(std::string address)
+    		int16_t read_int16(std::string address)
+	    	int32_t read_int32(std::string address)
+	    	int64_t read_int64(std::string address)
+	    	uint16_t read_uint16(std::string address)
+    		uint32_t read_uint32(std::string address)
+      		float read_float(std::string address)
+	    	double read_double(std::string address)
+	    	int write_to_address(MmsValue* mmsval, std::string address)
+
+    7. file webserver/core/iec61850client.cpp
+	    contains IEC61850 client functions
+    		std::string trimFC(char *entryName)
+    		std::string trimReportNum(std::string str)
+    		void reportCallbackFunction(void *parameter, ClientReport report)
+    		void sendOperateCommand(int iedindex, std::string target, bool newVal)
+    		void checkControlChanges()
+    		void process_client_mapping()
+    		void run_iec61850_client()
+
+    8. file webserver/core/iec61850server.cpp
+    	contains IEC61850 server functions
+    		ControlHandlerResult controlHandler(ControlAction action, void* parameter, MmsValue* value, bool test)
+    		void update_server()
+    		void set_control_handlers()
+    		void process_server_mapping()
+    		void startIec61850Server(int port)
+
+
+    ******************** Modifications: ********************
+    1. file background_installer.h
+    	add lines 113 - 133:
+    		compile pugixml and mapper tool, copy mapper tool to webserver/core
+    		copy genmodel.jar to webserver/core
+
+    2. file webserver/webserver.py
+    	added lines 34-35 to start IEC61850 functionality
+
+    3. file webserver/openplc.py
+    	added lines 226-246 to start/stop IEC61850 functionality
+
+    4. file webserver/scripts/compile_program.sh
+    	added lines 81-88, 90 and modified line 91 to compile OpenPLC+
+
+    5. file webserver/core/server.cpp
+    	commented out lines 148-149, 213-214, 227-228, 232-233, 242-243, 282-283 to remove log output
+
+    6. file webserver/core/interactive_server.cpp
+    	added lines 49-50, 62 to define global variables for IEC61850
+    		bool run_iec61850 = 0;
+    		uint16_t iec61850_port = 102;
+    		pthread_t iec61850_thread;
+    	added lines 100-108 to define function to start IEC61850 server and client
+    		void *iec61850Thread(void *arg)
+    	added lines 252-258 to stop IEC61850 server and client receiving quit command
+    	added lines 396-430 to start/stop IEC61850 server and client when receiving the coresponding commands
+    	added lines 560, 564 to stop IEC61850 server and client when stopping OpenPLC
+
+    7. file webserver/core/ladder.h
+    	added line 30-31 to include libIEC61850 server and client header files
+    		#include "iec61850_client.h"
+    		#include "iec61850_server.h"
+    	added line 36 to define protocol enum
+    		#define IEC61850_PROTOCOL   3
+    	added line 140 to declare bool variable for IEC61850
+    		extern bool run_iec61850;
+    	added lines 168-188 to declare functions and global variables of iec61850server.cpp, iec61850client.cpp and iec61850_rw.cpp

@@ -1,3 +1,6 @@
+//
+// Modified for OpenPLC+
+//
 //-----------------------------------------------------------------------------
 // Copyright 2015 Thiago Alves
 //
@@ -27,8 +30,6 @@
 #include <stdint.h>
 #include <unordered_map>
 #include <string>
-#include "iec61850_client.h"
-#include "iec61850_server.h"
 
 #define MODBUS_PROTOCOL     0
 #define DNP3_PROTOCOL       1
