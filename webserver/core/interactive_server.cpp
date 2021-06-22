@@ -1,5 +1,6 @@
 //
-// Modified for OpenPLC+
+// Modified for OpenPLC61850
+// ADSC 2021
 //
 //-----------------------------------------------------------------------------
 // Copyright 2018 Thiago Alves

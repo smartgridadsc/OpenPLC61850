@@ -1,4 +1,4 @@
-FIRST RELEASE | DATE WHEN RELEASED
+FIRST RELEASE | <DATE WHEN RELEASED>
 
     ******************** Additions: ********************
     1. dir utils/iec61850_mapper_src
@@ -61,7 +61,7 @@ FIRST RELEASE | DATE WHEN RELEASED
     	added lines 226-246 to start/stop IEC61850 functionality
 
     4. file webserver/scripts/compile_program.sh
-    	added lines 81-88, 90 and modified line 91 to compile OpenPLC+
+    	added lines 81-88, 90 and modified line 91 to compile OpenPLC61850
 
     5. file webserver/core/server.cpp
     	commented out lines 148-149, 213-214, 227-228, 232-233, 242-243, 282-283 to remove log output
