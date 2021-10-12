@@ -1,19 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <SCL xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://www.iec.ch/61850/2003/SCL">
-  <Header id="IEDServer01" nameStructure="IEDName" />
-  <!--Test file by WenShei-->
+  <Header id="IED01" nameStructure="IEDName" />
   <Communication>
     <SubNetwork name="node">
-      <ConnectedAP iedName="IEDServer01" apName="W1">
+      <ConnectedAP iedName="IED01" apName="W1">
         <Address>
-          <P type="IP">192.168.194.129</P>
+          <P type="IP">192.168.0.129</P>
           <P type="IP-SUBNET">255.255.255.0</P>
-          <P type="IP-GATEWAY">192.168.194.2</P>
+          <P type="IP-GATEWAY">192.168.0.254</P>
         </Address>
       </ConnectedAP>
     </SubNetwork>
   </Communication>
-  <IED name="IEDServer01" type="Telecontrol application" manufacturer="NOONE" configVersion="1.0">
+  <IED name="IED01" type="Telecontrol application" manufacturer="ADSC" configVersion="1.0">
     <Services>
       <DynAssociation />
       <SettingGroups />
