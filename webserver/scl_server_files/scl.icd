@@ -1,19 +1,18 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <SCL xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://www.iec.ch/61850/2003/SCL">
-  <Header id="WAGO61850Server" nameStructure="IEDName" />
-  <!--Create on WAGO Kontakttechnik GmbH Co KG Configurator Version 2.0.29 at 12/6/2020 10:51:48 AM-->
+  <Header id="TestServer" nameStructure="IEDName" />
   <Communication>
     <SubNetwork name="node">
-      <ConnectedAP iedName="WAGO61850Server" apName="W1">
+      <ConnectedAP iedName="TestServer" apName="W1">
         <Address>
-          <P type="IP">172.16.1.41</P>
-          <P type="IP-SUBNET">255.255.0.0</P>
-          <P type="IP-GATEWAY">172.16.6.1</P>
+          <P type="IP">192.168.0.10</P>
+          <P type="IP-SUBNET">255.255.255.0</P>
+          <P type="IP-GATEWAY">192.168.0.254</P>
         </Address>
       </ConnectedAP>
     </SubNetwork>
   </Communication>
-  <IED name="WAGO61850Server" type="Telecontrol application" manufacturer="WAGO" configVersion="2.0.29">
+  <IED name="TestServer" type="Telecontrol application" manufacturer="ADSC" configVersion="2.0.29">
     <Services>
       <DynAssociation />
       <SettingGroups />
