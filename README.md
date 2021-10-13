@@ -71,10 +71,10 @@ Before starting OpenPLC61850, you should perform some checks to ensure that the 
 
 There are two files you should check: `OpenPLC61850/webserver/core/iecserver.map` and `OpenPLC61850/webserver/core/iecserver.map`. These files are generated after compilation and reflect the configuration taken from the server and IED SCL files. They should not be empty, and should be similar to these:
 
-*iecserver.map*
+*iecserver.map* <br/>
 ![iecserver.map](https://raw.githubusercontent.com/smartgridadsc/OpenPLC61850/main/documentation/images/iecserver_map.png)
 
-*iecclient.map*
+*iecclient.map* <br/>
 ![iecclient.map](https://raw.githubusercontent.com/smartgridadsc/OpenPLC61850/main/documentation/images/iecclient_map.png)
 
 ## 5.2 Starting OpenPLC61850
