@@ -32,6 +32,8 @@
 #include <unordered_map>
 #include <string>
 
+#include "iec61850_model.h"
+
 #define MODBUS_PROTOCOL     0
 #define DNP3_PROTOCOL       1
 #define ENIP_PROTOCOL       2

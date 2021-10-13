@@ -31,6 +31,7 @@
 
 #include "hal_thread.h"
 #include "static_model.h"
+#include "iec61850_server.h"
 
 #include "ladder.h"
 

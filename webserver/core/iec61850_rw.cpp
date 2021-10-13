@@ -27,6 +27,7 @@
 
 #include "ladder.h"
 #include "static_model.h"
+#include "iec61850_model.h"
 
 #define MAX_BUFFER_SIZE 1024
 

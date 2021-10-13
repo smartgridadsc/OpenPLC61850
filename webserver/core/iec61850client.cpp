@@ -35,6 +35,7 @@
 #include <vector>
 
 #include "hal_thread.h"
+#include "iec61850_client.h"
 
 #include "ladder.h"
 
