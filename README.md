@@ -48,8 +48,10 @@ The default username and password for the web interface is `openplc` and `openpl
 
 ## 5.1 Configuration
 
-### 5.1.1 Adding IEC 61131-3 PLC programs to OpenPLC61850
+### 5.1.1 Adding IEC 61131-3 (ST) PLC programs to OpenPLC61850
 You can add your IEC 61131-3 PLC programs using the web interface. Since the steps are the same as the original OpenPLC, you can refer to same guide [here](https://www.openplcproject.com/reference/basics/upload) (follow OpenPLC v3 instructions).
+
+Once the program is added to OpenPLC61850, you can find it in `OpenPLC68150/webserver/st_files`. This directory holds all the `*.st` files that you have added to OpenPLC61850. The program that will be used during operation of OpenPLC61850 is listed in `OpenPLC61850/webserver/active_program`.
 
 ### 5.1.2 Adding SCL files to OpenPLC61850
 
