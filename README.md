@@ -71,7 +71,7 @@ To recompile the PLC runtime, you can just reload the IEC 61131-3 PLC program in
 ### 5.1.3 Final checks
 Before starting OpenPLC61850, you should perform some checks to ensure that the configuration is properly set. 
 
-There are two files you should check: `OpenPLC61850/webserver/core/iecserver.map` and `OpenPLC61850/webserver/core/iecserver.map`. These files are generated after compilation and reflect the configuration taken from the server and IED SCL files. They should not be empty, and should be similar to these:
+There are two files you should check: `OpenPLC61850/webserver/core/iecserver.map` and `OpenPLC61850/webserver/core/iecclient.map`. These files are generated after compilation and reflect the configuration taken from the server and IED SCL files. They should not be empty, and should be similar to these:
 
 *iecserver.map* <br/>
 ![iecserver.map](https://raw.githubusercontent.com/smartgridadsc/OpenPLC61850/main/documentation/images/iecserver_map.png)
