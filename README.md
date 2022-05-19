@@ -86,3 +86,10 @@ Once OpenPLC61850 is configured to your preference, you can start it by pressing
 # 6. Acknowledgement
 
 This work is supported by the National Research Foundation, Singapore, Singapore University of Technology and Design under its National Satellite of Excellence in Design Science and Technology for Secure Critical Infrastructure Grant (NSoE_DeST-SCI2019-0005).
+
+# 7. Papers
+- Muhammad M. Roomi, Wen Shei Ong, S.M. Suhail Hussain and Daisuke Mashima, "IEC 61850 Compatible OpenPLC for Cyber Attack Case Studies on Smart Substation Systems" On IEEE Xplore, 2022. <br/> (https://ieeexplore.ieee.org/document/9684382)
+-	Muhammad M. Roomi, Wen Shei Ong, Daisuke Mashima, and S.M. Suhail Hussain, “OpenPLC61850: An IEC 61850 Compatible Open-source PLC for Smart Grid Research.” On Elsevier SoftwareX Journal, 2022. <br/> (https://www.sciencedirect.com/science/article/pii/S235271102100162X)
+-	Muhammad M. Roomi, Wen Shei Ong, Daisuke Mashima and S. M. Suhail Hussain, “OpenPLC61850: An IEC 61850 Compatible OpenPLC for Smart Grid Research.” On TechRxiv, 2021. <br/> (https://www.techrxiv.org/articles/preprint/OpenPLC61850_An_IEC_61850_compatible_OpenPLC_for_Smart_Grid_Research/14845062).
+
+
