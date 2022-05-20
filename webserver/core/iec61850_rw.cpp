@@ -249,10 +249,55 @@ double read_double(std::string address) {
 int write_to_address(MmsValue* mmsval, std::string address) {
     MmsType type = MmsValue_getType(mmsval);
     ADDRESS addr = getAddress(address);
+    //sprintf(log_msg_iecrw, "TEMP DEBUG Write address %s\n", address.c_str());
+    //log(log_msg_iecrw);
+    //debug
+    /*
+    if (type == MMS_INTEGER) {
+        sprintf(log_msg_iecrw, "TEMP DEBUG MMS_INTEGER\n");
+        log(log_msg_iecrw);
+    }
+    else if (type == MMS_FLOAT) {
+        sprintf(log_msg_iecrw, "TEMP DEBUG MMS_FLOAT\n");
+        log(log_msg_iecrw);
+    }
+    else if (type == MMS_BOOLEAN) {
+        sprintf(log_msg_iecrw, "TEMP DEBUG MMS_BOOLEAN\n");
+        log(log_msg_iecrw);
+    }
+    else {
+        sprintf(log_msg_iecrw, "TEMP DEBUG MMS_OTHER\n");
+        log(log_msg_iecrw);
+    }
+    */
+    //end-debug
 
     pthread_mutex_lock(&bufferLock);
     if (addr.buffertype.compare("%QX") == 0) { //Output Coils %QX0.0 - %QX99.7
-        IEC_BOOL val = (IEC_BOOL) MmsValue_getBoolean(mmsval);
+        IEC_BOOL val;
+        if (type == MMS_BOOLEAN){
+
+            val = (IEC_BOOL) MmsValue_getBoolean(mmsval);
+
+        }else{
+            //here, assume it is stVal (80 is true, 40 is false)
+            int value = MmsValue_getBitStringAsInteger(mmsval);
+            //sprintf(log_msg_iecrw, "TEMP DEBUG QX: %d\n", value);
+            //log(log_msg_iecrw);
+
+            //TODO Seems like the value is 2 when false, 1 when true
+            if(value ==1){
+                //sprintf(log_msg_iecrw, "TEMP DEBUG CB STATUS TRUE\n");
+                //log(log_msg_iecrw);
+                val = true;
+            }else{
+                //sprintf(log_msg_iecrw, "TEMP DEBUG CB STATUS FALSE\n");
+                //log(log_msg_iecrw);
+                val = false;
+            }
+
+        }
+        //IEC_BOOL val = (IEC_BOOL) MmsValue_getBoolean(mmsval);
         if(bool_output[addr.location.first][addr.location.second] != NULL) {
             *bool_output[addr.location.first][addr.location.second] = val;
         }
@@ -314,6 +359,10 @@ int write_to_address(MmsValue* mmsval, std::string address) {
             int32_t val = MmsValue_toInt32(mmsval);
             if (dint_memory[addr.location.first] != NULL) {
                 *dint_memory[addr.location.first] = val;
+
+                //sprintf(log_msg_iecrw, "TEMP DEBUG INT VALUE IS UPDATED: %d\n", *dint_memory[addr.location.first]);
+                //log(log_msg_iecrw);
+
             }
         }
         else if (type == MMS_UNSIGNED) {

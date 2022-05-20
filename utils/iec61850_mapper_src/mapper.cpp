@@ -1,24 +1,6 @@
-//-----------------------------------------------------------------------------
-// Copyright 2021 ADSC
-//
-// This file is part of the OpenPLC61850 Software Stack.
-//
-// OpenPLC61850 is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// OpenPLC61850 is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with OpenPLC61850.  If not, see <http://www.gnu.org/licenses/>.
-//------
-//
-// Mapper tool - maps IEC61850 data objects to variable/addresses in OpenPLC Runtime
-//-----------------------------------------------------------------------------
+/*
+    Mapper program - map IEC61850 data objects to variable/addresses in OpenPLC Runtime
+*/
 
 #include <fstream>
 #include <iostream>
@@ -96,19 +78,26 @@ void get_IP_address(xml_document &sclfile)
 std::string get_dataSet_reference(xml_document &sclfile, std::string given_name)
 {
     xml_node phydev = sclfile.child("SCL").child("IED");
-    std::string pdld_name = phydev.attribute("name").value();
+    std::string ied_name = phydev.attribute("name").value();
 
     xml_node logdev = phydev.child("AccessPoint").child("Server").child("LDevice");
-    pdld_name = pdld_name + logdev.attribute("inst").value();
+    //pdld_name = pdld_name + logdev.attribute("inst").value();
 
-    for (xml_node dataset = logdev.child("LN0").child("DataSet"); dataset; dataset = dataset.next_sibling("DataSet")) {
-        std::string dataset_name = dataset.attribute("name").value();
-        if (dataset_name.compare(given_name) == 0) {
-            return (pdld_name + "/LLN0$" + dataset_name);
-        }
+    for (xml_node ld_node = logdev; ld_node; ld_node = ld_node.next_sibling("LDevice")) {
+ 	xml_node ln_node = ld_node.child("LN0");
+        std::string pdld_name = ied_name + ld_node.attribute("inst").value();
+	//std::cout << "DATASETNAME: " <<pdld_name << "\n";
+
+    	for (xml_node dataset = ln_node.child("DataSet"); dataset; dataset = dataset.next_sibling("DataSet")) {
+        	std::string dataset_name = dataset.attribute("name").value();
+		//std::cout << "REPORTNAME: " <<(pdld_name + "/LLN0$" + dataset_name) << "\n";
+        	if (dataset_name.compare(given_name) == 0) {
+        	
+            		return (pdld_name + "/LLN0$" + dataset_name);
+        	}
         
+    	}
     }
-
     return "X";
 }
 
@@ -121,23 +110,29 @@ void get_report_dataset(xml_document &sclfile)
 {
     std::vector<std::string> reports_datasets;
     xml_node phydev = sclfile.child("SCL").child("IED");
-    std::string pdld_name = phydev.attribute("name").value();
+    std::string ied_name = phydev.attribute("name").value();
 
     xml_node logdev = phydev.child("AccessPoint").child("Server").child("LDevice");
-    pdld_name = pdld_name + logdev.attribute("inst").value();
+    //pdld_name = pdld_name + logdev.attribute("inst").value();
 
-    for (xml_node report = logdev.child("LN0").child("ReportControl"); report; report = report.next_sibling("ReportControl")) {
-        std::string report_name = report.attribute("name").value();
-        std::string dataset_ref = get_dataSet_reference(sclfile, report.attribute("datSet").value()); 
+
+     for (xml_node ld_node = logdev; ld_node; ld_node = ld_node.next_sibling("LDevice")) {
+ 	xml_node ln_node = ld_node.child("LN0");
+        std::string pdld_name = ied_name + ld_node.attribute("inst").value();
+
+        for (xml_node report = ln_node.child("ReportControl"); report; report = report.next_sibling("ReportControl")) {
+            std::string report_name = report.attribute("name").value();
+            std::string dataset_ref = get_dataSet_reference(sclfile, report.attribute("datSet").value()); 
         
-        int numInstances = std::stoi(report.child("RptEnabled").attribute("max").value());
-        for(int i = 1; i <= numInstances; i++) {
-            char inst[10];
-            sprintf(inst, "%02d", i);
-            reports_datasets.push_back(pdld_name + "/LLN0.RP." + report_name + inst + " " + dataset_ref);
+            int numInstances = std::stoi(report.child("RptEnabled").attribute("max").value());
+            for(int i = 1; i <= numInstances; i++) {
+                char inst[10];
+                sprintf(inst, "%02d", i);
+                reports_datasets.push_back(pdld_name + "/LLN0.RP." + report_name + inst + " " + dataset_ref);
+            }
         }
     }
-
+    
     report_dataset_buffer.push_back(reports_datasets);
 }
 
@@ -151,6 +146,7 @@ void getVarAddrMapping(xml_node parent, std::string pathstring)
     if (parent.child("Private")) {
         for (xml_node priv_node = parent.child("Private"); priv_node; priv_node = priv_node.next_sibling("Private")) {
             std::string newpathstring = pathstring + DELIMITER + priv_node.attribute("name").value();
+            //std::cout << "######## PATH:" << newpathstring << "\n";
             getVarAddrMapping(priv_node, newpathstring);
         }
     }
@@ -199,44 +195,133 @@ void get_scl_variables(xml_document &sclfile)
     std::string ied_name = ied.attribute("name").value();
 
     xml_node ld = ied.child("AccessPoint").child("Server").child("LDevice");
-    std::string ld_name = ld.attribute("inst").value();
-
-    std::unordered_map<std::string, std::string> lntype_lninst_mapping;
     
-    //Get map of ln type -> ln instance
-    for (xml_node ln_node = ld.child("LN"); ln_node; ln_node = ln_node.next_sibling("LN")) {
-        std::string ln_type = ln_node.attribute("lnType").value();
-        std::string ln_class = ln_node.attribute("lnClass").value();
-        std::string ln_inst = ln_node.attribute("inst").value();
+    //std::unordered_map<std::string, std::string> do_ln_mapping;
+    //std::unordered_map<std::string, std::string> lntype_lninst_mapping;
 
-        lntype_lninst_mapping[ln_type] = ln_class + ln_inst;
-    }
+    for (xml_node ld_node = ld; ld_node; ld_node = ld_node.next_sibling("LDevice")) {
+  
+	//std::string ld_name = ld.attribute("inst").value();
+        std::string ld_name = ld_node.attribute("inst").value();
+    
+        //std::cout <<"#" + ld_name << "\n";
 
-    std::unordered_map<std::string, std::string> do_ln_mapping;
+        //std::unordered_map<std::string, std::string> lntype_lninst_mapping;
+        std::unordered_map<std::string, std::string> do_ln_mapping;
+    
+        //Get map of ln type -> ln instance
+        for (xml_node ln_node = ld_node.child("LN0"); ln_node; ln_node = ln_node.next_sibling("LN")) {
+//  for (xml_node ln_node = ld.child("LN0"); ln_node; ln_node = ln_node.next_sibling("LN")) {
+//    for (xml_node ln_node = ld.child("LN"); ln_node; ln_node = ln_node.next_sibling("LN")) {
+
+            std::unordered_map<std::string, std::string> lntype_lninst_mapping;
+
+
+            std::string ln_type = ln_node.attribute("lnType").value();
+            //std::cout << "## LNType: " << ln_type << "\n";
+            std::string ln_class = ln_node.attribute("lnClass").value();
+            std::string ln_inst = ln_node.attribute("inst").value();
+
+            lntype_lninst_mapping[ln_type] = ln_class + ln_inst;
+            //std::cout << "## LNTYPE_LNINST: " << ln_type << " " << ln_class << " " << ln_inst << "\n";
+//    }
+
+            //std::unordered_map<std::string, std::string> do_ln_mapping;
 
     //Get map of do_type -> (ln_name + do_name)
-    for (xml_node ln_node = dtt.child("LNodeType"); ln_node; ln_node = ln_node.next_sibling("LNodeType")) {
-        std::string ln_type = ln_node.attribute("id").value();
+    	    bool LNfound = false;
+            for (xml_node ln_node2 = dtt.child("LNodeType"); ln_node2; ln_node2 = ln_node2.next_sibling("LNodeType")) {
+                std::string ln_type2 = ln_node2.attribute("id").value();
+                if(LNfound == true) break;
+                
+                //std::cout << "#### LNType DTT: " << ln_type2 << "\n";
+        	if(ln_type.compare(ln_type2) ==0){
+			LNfound = true;
+                	for (xml_node do_node = ln_node2.child("DO"); do_node; do_node = do_node.next_sibling("DO")) {
+                    		xml_attribute do_name = do_node.attribute("name");
+                    		xml_attribute do_type = do_node.attribute("type");
+                    		std::string do_namestring = do_name.value();
+        			//std::cout << "#### DO NAME: " << do_namestring << "\n";
 
-        for (xml_node do_node = ln_node.child("DO"); do_node; do_node = do_node.next_sibling("DO")) {
-            xml_attribute do_name = do_node.attribute("name");
-            xml_attribute do_type = do_node.attribute("type");
-            std::string do_namestring = do_name.value();
+                    		do_ln_mapping[do_type.value()] = ied_name + ld_name + DEVICE_DELIM + lntype_lninst_mapping[ln_type] + DELIMITER + do_namestring;
+                    		//std::cout<< "#### DO_LN: " << ied_name + ld_name + DEVICE_DELIM + lntype_lninst_mapping[ln_type] + DELIMITER + do_namestring << "\n";
 
-            do_ln_mapping[do_type.value()] = ied_name + ld_name + DEVICE_DELIM + lntype_lninst_mapping[ln_type] + DELIMITER + do_namestring;
-        }
-    }
+				bool DOfound = false;
+			       //Path to get var names: dtt > dotype > da > private [ > private]* > property (sMonitoringVar/scontrolVar)
+       				for (xml_node do_type2 = dtt.child("DOType"); do_type2; do_type2 = do_type2.next_sibling("DOType")) {
+					if(DOfound == true) break;
+					
+           				xml_attribute do_id = do_type2.attribute("id");
+           				std::string do_id_str = do_id.value();
+           				
+           				if(do_id_str.compare(do_type.value()) == 0){
+           					DOfound == true;
+           					//std::string do_namestring = do_name2.value();
 
-    //Path to get var names: dtt > dotype > da > private [ > private]* > property (sMonitoringVar/scontrolVar)
-    for (xml_node do_node = dtt.child("DOType"); do_node; do_node = do_node.next_sibling("DOType")) {
-        xml_attribute do_name = do_node.attribute("id");
-        std::string do_namestring = do_name.value();
+		       				for (xml_node sdo_node = do_type2.child("SDO"); sdo_node; sdo_node = sdo_node.next_sibling("SDO")) {
+		       					//std::cout << "SDO found." << "\n";
+		           				xml_attribute sdo_type_ref = sdo_node.attribute("type");
+ 		          				std::string sdo_type_ref_str = sdo_type_ref.value();
 
-        for (xml_node da_node = do_node.child("DA"); da_node; da_node = da_node.next_sibling("DA")) {
-            std::string pathstring = do_ln_mapping[do_namestring];
-            getVarAddrMapping(da_node, pathstring);
-        }
-    }
+							//assume SDO is one level.
+	           					for (xml_node sdo_type = dtt.child("DOType"); sdo_type; sdo_type = sdo_type.next_sibling("DOType")) {
+	           					
+	           						if(sdo_type_ref_str.compare(sdo_type.attribute("id").value())!= 0) continue;
+			       					//std::cout << "SDO type def found." << "\n";
+	           					
+	           					
+		           					for (xml_node da_node = sdo_type.child("DA"); da_node; da_node = da_node.next_sibling("DA")) {
+	           					
+           								//std::cout << "###### SDO:DA: "<< da_node.attribute("name").value() << "\n";
+              								//std::string pathstring = do_ln_mapping[do_namestring];
+              								std::string pathstring = do_ln_mapping[do_id_str] + DELIMITER + sdo_node.attribute("name").value();
+              								//std::cout << "###### SDO:PATH:" << pathstring << "\n";
+
+               								getVarAddrMapping(da_node, pathstring);
+               							}
+           						}
+
+		       				
+						}
+
+
+           					for (xml_node da_node = do_type2.child("DA"); da_node; da_node = da_node.next_sibling("DA")) {
+           						//std::cout << "###### DA: "<< da_node.attribute("name").value() << "\n";
+              						//std::string pathstring = do_ln_mapping[do_namestring];
+              						std::string pathstring = do_ln_mapping[do_id_str];
+              						//std::cout << "###### PATH:" << pathstring << "\n";
+
+               						getVarAddrMapping(da_node, pathstring);
+           					}
+       					}	
+
+				}
+
+
+
+
+
+
+                	}
+                }
+            }
+
+      }
+      
+       //Path to get var names: dtt > dotype > da > private [ > private]* > property (sMonitoringVar/scontrolVar)
+//       for (xml_node do_node = dtt.child("DOType"); do_node; do_node = do_node.next_sibling("DOType")) {
+//           xml_attribute do_name = do_node.attribute("id");
+//           std::string do_namestring = do_name.value();
+
+//           for (xml_node da_node = do_node.child("DA"); da_node; da_node = da_node.next_sibling("DA")) {
+//              std::string pathstring = do_ln_mapping[do_namestring];
+//               getVarAddrMapping(da_node, pathstring);
+//           }
+//       }
+
+          
+    }        
+            
 }
 
 int process_scl_files()
@@ -314,6 +399,7 @@ int process_st_file()
             std::string address = token;
 
             var_addr_map[varName] = address;
+            //std::cout << line << "\n";
         }
 
         if (inVar && line.compare("END_VAR") == 0) {
