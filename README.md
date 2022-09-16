@@ -55,6 +55,12 @@ Once the program is added to OpenPLC61850, you can find it in `OpenPLC68150/webs
 
 ### 5.1.2 Adding SCL files to OpenPLC61850
 
+Before adding SCL files to OpenPLC61850, you will need to modify them.
+
+You need to add <Private> child elements to the data attributes. This is done as described [here](https://www.sciencedirect.com/science/article/pii/S235271102100162X) (section 3.2) and in the following image. This step is needed so that it can create a mapping between your PLC program variables and the IEC61850 data attributes. 
+
+![image](https://user-images.githubusercontent.com/42404058/169481915-48e1e432-2c28-4ff0-a429-030a0d41333b.png)\
+
 #### 5.1.2.1 Server SCL file
 Since the web interface was not modified from the original OpenPLC, you have to manually add the server SCL file to OpenPLC61850 directory.
 
