@@ -183,6 +183,7 @@ void checkControlChanges()
                 if(error != IED_ERROR_OK) {
                     sprintf(log_msg_iecclient, "ErrorCheckingValueBeforeWriting for %s\n", stvalstr.c_str());
                     log(log_msg_iecclient);
+                    continue;
                 }
                 if (iedvalue == newvalue) {
                     continue;
