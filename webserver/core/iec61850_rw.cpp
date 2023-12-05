@@ -44,6 +44,10 @@ unsigned char log_msg_iecrw[1000];
 
 ADDRESS getAddress(std::string address) {
     ADDRESS addr;
+    if (address.length() < 3) {
+	return {"error", {-1,-1}};
+    }
+
     addr.buffertype = address.substr(0,3);
 
     address = address.substr(3,10);
